@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>大陸の地形と気候</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column — region switch, view controls, the 3D relief, then legend and the tapped point's climograph */
+:root{
+  --bg:#F2F4F3;--panel:#FFFFFF;--fg:#1C2326;--muted:#5D6A6F;--line:#D3DAD9;--accent:#1F5F8B;--accent-soft:#DCE8F1;--sea:#2E6896;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121719;--panel:#1A2124;--fg:#E4EAEA;--muted:#93A2A6;--line:#2E393D;--accent:#7FB3DA;--accent-soft:#1D3344;--sea:#244F72;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121719;--panel:#1A2124;--fg:#E4EAEA;--muted:#93A2A6;--line:#2E393D;--accent:#7FB3DA;--accent-soft:#1D3344;--sea:#244F72;color-scheme:dark}
+[hidden]{display:none!important}
+body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:24px;font-weight:700;margin:0;letter-spacing:.02em;text-wrap:balance}
+.sub{margin:2px 0 0;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;color:var(--muted);font:500 14px var(--font-body);padding:7px 14px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--fg);font:14px var(--font-body);padding:5px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.month{display:flex;align-items:center;gap:10px}
+.month input{flex:1;accent-color:var(--accent)}
+.month output{font:500 14px var(--font-data);min-width:3.2em;text-align:right;font-variant-numeric:tabular-nums}
+.play{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;font-size:13px}
+.stage{position:relative;height:460px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.stage canvas{display:block;touch-action:none}
+#labels{position:absolute;inset:0;pointer-events:none;font-size:12px}
+#labels span{position:absolute;transform:translate(-50%,-150%);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:0 6px;white-space:nowrap}
+#status{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;margin:0}
+.hint{position:absolute;left:8px;bottom:8px;margin:0;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 6px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:20px;height:12px;border:1px solid rgba(0,0,0,.35);display:inline-block}
+.legend b{font:500 13px var(--font-data)}
+.probe{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.probe h2{font-size:16px;margin:0;font-weight:700}
+.probe .meta{margin:0;color:var(--muted);font:13px var(--font-data);font-variant-numeric:tabular-nums}
+#chart{width:100%;height:auto;display:block}
+.note{color:var(--muted);font-size:12.5px;margin:0;max-width:65ch}
+@media (max-width:520px){.stage{height:380px}h1{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>大陸の地形と気候</h1>
+      <p class="sub">風と雨の仕組みから気温・降水量を計算し、ケッペンの式で塗り分けています</p>
+    </div>
+    <div class="seg" role="group" aria-label="大陸">
+      <button id="r-south-america" data-region="south-america" aria-pressed="false">南アメリカ</button>
+      <button id="r-africa" data-region="africa" aria-pressed="true">アフリカ</button>
+      <button id="r-europe" data-region="europe" aria-pressed="false">ヨーロッパ</button>
+      <button id="r-russia" data-region="russia" aria-pressed="false">ロシア</button>
+    </div>
+  </header>
+  <div class="row" role="group" aria-label="表示">
+    <button class="chip" id="m-terrain" data-mode="terrain" aria-pressed="false">地形</button>
+    <button class="chip" id="m-koppen" data-mode="koppen" aria-pressed="true">気候区分</button>
+    <button class="chip" id="m-temp" data-mode="temp" aria-pressed="false">気温</button>
+    <button class="chip" id="m-prec" data-mode="prec" aria-pressed="false">降水量</button>
+  </div>
+  <div class="month">
+    <button class="play" id="play" aria-label="月を再生">▶</button>
+    <input type="range" id="month" min="1" max="12" step="1" value="1" aria-label="月">
+    <output id="month-out" for="month">1月</output>
+  </div>
+  <div class="stage" id="stage">
+    <div id="labels"></div>
+    <p id="status">計算中…</p>
+    <p class="hint">ドラッグで回転・ピンチで拡大・タップで地点の雨温図</p>
+  </div>
+  <div class="legend" id="legend"></div>
+  <section class="probe" aria-live="polite">
+    <h2 id="p-title">地点を選んでください</h2>
+    <p class="meta" id="p-meta">地図上の陸地をタップすると、その地点の雨温図が出ます</p>
+    <canvas id="chart" width="640" height="200" aria-label="雨温図"></canvas>
+  </section>
+  <p class="note">標高は主な山脈や高原を数式で近似したもので、高さは強調しています。気温と降水量も簡略化したモデルなので、実際の気候図とずれる場所があります（例：キンシャサは実際はAw）。ロシアは東経180度より東のチュコト半島の先端を省いています。</p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+function sq(x){return x*x}
+function g(x,y,cx,cy,sx,sy){return Math.exp(-(sq(x-cx)/sx+sq(y-cy)/sy))}
+function sig(x){return 1/(1+Math.exp(-x))}
+function ridge(x,y,x1,y1,x2,y2,w,h){const dx=x2-x1,dy=y2-y1,L=dx*dx+dy*dy;let t=((x-x1)*dx+(y-y1)*dy)/L;t=Math.max(0,Math.min(1,t));return h*Math.exp(-(sq(x-x1-t*dx)+sq(y-y1-t*dy))/(w*w))}
+function lerpT(t,x){if(x>=t[0][0])return t[0][1];for(let i=1;i<t.length;i++){if(x>=t[i][0]){const a=t[i-1],b=t[i],k=(x-a[0])/(b[0]-a[0]);return a[1]+(b[1]-a[1])*k}}return t[t.length-1][1]}
+
+const SA_AX=[[12,-72],[8,-73.5],[4,-75.5],[0,-78],[-5,-79],[-10,-76.5],[-15,-71],[-18,-68.5],[-22,-67.5],[-27,-68.5],[-33,-70],[-38,-71],[-42,-71.8],[-47,-73],[-52,-73],[-55,-69]];
+const SA_PK=[[12,2600],[6,3600],[0,4300],[-8,4800],[-15,4700],[-22,4600],[-30,5200],[-33,5600],[-38,3000],[-45,2100],[-50,1900],[-55,900]];
+const SA_WD=[[12,1.3],[0,1.1],[-10,1.3],[-15,2.5],[-21,2.7],[-25,1.7],[-30,1.0],[-40,0.9],[-55,0.8]];
+const SA={
+  L0:-82,L1:-34,T0:13,T1:-56,EX:0.00065,cam:[14,52,62],target:[0,0,4],focus:null,
+  pins:[['ブエノスアイレス',-58.4,-34.6],['メンドーサ',-68.8,-32.9],['リマ',-77,-12],['マナウス',-60,-3.1]],start:[-58.4,-34.6],
+  elev(lon,lat){const ax=lerpT(SA_AX,lat),d=lon-ax,w=lerpT(SA_WD,lat),pw=(lat<-13&&lat>-24)?4:2;
+    let h=lerpT(SA_PK,lat)*Math.exp(-Math.pow(Math.abs(d)/w,pw));
+    h+=850*g(lon,lat,-46,-16,55,45)+1100*g(lon,lat,-44.5,-22.5,3,1.5)+1300*g(lon,lat,-62,5,8,4)+500*g(lon,lat,-64.5,-31.5,1.5,6);
+    if(lat<-38&&d>0)h+=Math.max(0,750*(1-d/11));
+    return h+70+45*Math.sin(lon*1.7)*Math.cos(lat*1.3)+30*Math.sin(lon*4.1+lat*3.3)},
+  cell(lon,lat){const h=this.elev(lon,lat),ax=lerpT(SA_AX,lat),west=lon<ax,T=[],P=[];
+    for(let m=0;m<12;m++){
+      const a=Math.abs(lat);let t=27-0.012*Math.pow(a,1.9)+Math.max(0,a-42)*0.35;
+      const amp=a>45?7-0.25*(a-45):Math.min(7,0.16*a+(a>20?1.5:0));t+=(lat<0?1:-1)*amp*Math.cos(2*Math.PI*m/12);
+      if(west&&lat<-4&&lat>-36)t-=3.5;T.push(t-Math.max(0,h)*0.0065);
+      const s=Math.cos(2*Math.PI*m/12),east=lon>ax,d=lon-ax;let p=0;const c=-5-10*s;
+      if(east||lat>-3)p+=260*Math.exp(-sq((lat-c)/10));
+      if(east)p+=90*Math.exp(-sq((lat+3)/10));
+      if(!east&&lat>-2)p+=500*g(lon,lat,-77.5,5,4,25);
+      if(east){const f=Math.min(1,Math.max(0,(lon+68)/9));p+=(110+30*s)*f*Math.exp(-sq((lat+30)/9))}
+      const cw=-45-6*s,pw=260*Math.exp(-sq((lat-cw)/7))+(lat<-42?120:0);p+=east?pw*Math.exp(-d/0.5):pw;
+      p*=1-0.7*g(lon,lat,-40,-8,25,18);P.push(p+12)}
+    return{h,T,P}}
+};
+
+const AF_IDS=new Set(['012','024','072','108','120','132','140','148','174','178','180','204','226','231','232','262','266','270','288','324','384','404','426','430','434','450','454','466','478','480','504','508','516','562','566','624','646','686','694','706','710','716','728','729','732','748','768','788','800','818','834','854','894','678']);
+const AF={
+  L0:-19,L1:53,T0:38,T1:-36,EX:0.0008,cam:[6,64,74],target:[0,0,3],
+  focus:x=>AF_IDS.has(String(x.id))||(x.properties&&x.properties.name==='Somaliland'),
+  pins:[['カイロ',31.2,30],['ラゴス',3.4,6.5],['キンシャサ',15.3,-4.3],['ナイロビ',36.8,-1.3],['ケープタウン',18.5,-33.95]],start:[36.8,-1.3],
+  elev(lon,lat){let h=350;
+    h+=1000*g(lon,lat,27,-17,220,160)-250*g(lon,lat,21,-1,30,20);
+    h+=600*g(lon,lat,27,-27,15,6)+700*g(lon,lat,17,-22,4,20)+600*g(lon,lat,16,-12,6,10);
+    h+=2000*g(lon,lat,38.5,9.5,5,9)+1300*g(lon,lat,36.5,-1,3,7)+900*g(lon,lat,29.8,-3,1.5,12)+900*g(lon,lat,34.5,-9.5,2,4);
+    h+=3800*g(lon,lat,37.35,-3.07,0.06,0.06)+3000*g(lon,lat,37.3,-0.15,0.05,0.05);
+    h+=ridge(lon,lat,-9.5,30.5,-4,32.5,0.8,2000)+ridge(lon,lat,-4,32.5,3,34.8,1,1400)+ridge(lon,lat,3,34.8,9,35.5,1,900)+ridge(lon,lat,-8,31.2,-4.5,33.5,0.7,800);
+    h+=1400*g(lon,lat,5.6,23.3,3,3)+1700*g(lon,lat,18.3,21,2.5,2)+1100*g(lon,lat,24.3,13,0.8,1)+1300*g(lon,lat,10.5,6.5,2,3)+2500*g(lon,lat,9.2,4.2,0.05,0.05);
+    h+=1300*g(lon,lat,29.3,-29.5,0.5,3.5)+800*g(lon,lat,31,-25,1,4)+ridge(lon,lat,48.5,-13.5,46.8,-24,0.9,1100)+600*g(lon,lat,-11.5,11,3,3);
+    return h+40*Math.sin(lon*1.7)*Math.cos(lat*1.3)+25*Math.sin(lon*4.1+lat*3.3)},
+  cell(lon,lat,D){const dc=Math.min(D.dE,D.dW,D.dN,D.dS);let h=this.elev(lon,lat);h=30+(h-30)*Math.min(1,(dc+0.3)/2.5);
+    const atl=lat<31&&D.wl<14&&D.wl>-99;
+    const cw=atl?Math.exp(-D.dW/2.5)*(sig((lat+32)/1.5)*sig(-(lat+10)/1.5)+sig((lat-14)/1.5)*sig(-(lat-30)/1.5)):0;
+    const T=[],P=[],a=Math.abs(lat);
+    for(let m=0;m<12;m++){const s=Math.cos(2*Math.PI*m/12);
+      let t=27.5-0.011*Math.pow(a,1.9)+4.5*g(lon,lat,8,21,250,50);
+      t+=(lat<0?1:-1)*Math.min(7.5,0.2*a+0.5)*(0.65+0.35*Math.min(1,dc/4))*s;T.push(t-6*cw-Math.max(0,h)*0.0055);
+      const wj=Math.min(1,Math.max(0,(lon-5)/12)),cJ=-3*(1-wj)-16*wj,cU=11,c=(cJ+cU)/2+(cJ-cU)/2*s;
+      const bw=lat>c?(c>4?5:7):8;let p=230*Math.exp(-sq((lat-c)/bw));
+      p+=70*Math.max(0,s)*g(lon,lat,28,-24,40,30);
+      p+=70*Math.exp(-sq((lat+1)/7))*g(lon,lat,20,0,120,60);
+      p+=250*Math.max(0,-s)*g(lon,lat,-11.5,8.5,10,8)+300*Math.max(0,0.3-0.7*s)*g(lon,lat,9.7,4,2,4);
+      p*=1-0.5*g(lon,lat,1,6,6,2);p*=1-0.85*g(lon,lat,46,5,60,40);p*=1-0.6*g(lon,lat,15,24,250,25);
+      p*=1-(0.75-0.75*sig((lon-21)/3))*sig(-(lat+12)/2);
+      const wN=Math.max(0,0.8*s+0.2),wS=Math.max(0,0.2-0.8*s);
+      p+=100*wN*Math.exp(-sq((lat-35)/3.5))*Math.exp(-Math.min(D.dN,D.dW)/2.5);
+      p+=110*wS*Math.exp(-sq((lat+34)/2))*Math.exp(-Math.min(D.dW,D.dS)/2)*(lon<24?1:0.4);
+      p+=((80+50*s)*Math.exp(-D.dE/1.5)+40*Math.exp(-D.dE/5))*sig(-(lat+8)/1.5);
+      p*=Math.max(0.03,1-1.2*Math.pow(cw,0.6));p*=1+Math.min(0.7,Math.max(0,h-600)/2500);P.push(p+4)}
+    return{h,T,P}}
+};
+const EU_IDS=new Set(['008','020','040','056','070','100','112','191','203','208','233','246','250','276','300','348','352','372','380','428','438','440','442','470','492','498','499','528','578','616','620','642','674','688','703','705','724','752','756','804','807','826','336','234','831','832','833','248']);
+const SCAN=[[70,23],[68.5,18],[65,13.5],[61.5,8.5],[58.5,6.5]];
+const EU={
+  L0:-25,L1:45,T0:72,T1:34,EX:0.0012,xs:0.65,cam:[4,40,46],target:[0,0,1],
+  focus:x=>EU_IDS.has(String(x.id))||(x.properties&&x.properties.name==='Kosovo'),
+  pins:[['ロンドン',-0.1,51.5],['パリ',2.35,48.85],['マドリード',-3.7,40.4],['ローマ',12.5,41.9],['ストックホルム',18.07,59.33],['キーウ',30.5,50.45]],start:[-0.1,51.5],
+  elev(lon,lat){let h=120;
+    h+=ridge(lon,lat,5.5,44.2,7,46,0.6,2300)+ridge(lon,lat,7,46,10.5,46.5,0.7,2600)+ridge(lon,lat,10.5,46.5,13.5,47,0.7,2300)+ridge(lon,lat,13.5,47,16,47.5,0.6,1300);
+    h+=ridge(lon,lat,-1.8,43,3,42.6,0.45,2000)+ridge(lon,lat,-7,43,-3,43.1,0.45,1300)+450*g(lon,lat,-4,40,14,6)+1600*g(lon,lat,-3.3,37.1,0.6,0.15)+700*g(lon,lat,-4.2,40.8,3,0.1);
+    h+=ridge(lon,lat,6.5,58.5,8.5,61.5,1.2,1300)+ridge(lon,lat,8.5,61.5,13.5,65,1.2,1100)+ridge(lon,lat,13.5,65,18,68.5,1.2,1100)+ridge(lon,lat,18,68.5,23,70,1.2,700);
+    h+=ridge(lon,lat,17.5,48.5,20,49.3,0.6,1300)+ridge(lon,lat,20,49.3,23,48.8,0.6,900)+ridge(lon,lat,23,48.8,25.5,47.5,0.6,1200)+ridge(lon,lat,25.5,47.5,26,45.6,0.6,1300)+ridge(lon,lat,26,45.6,22.5,45.4,0.5,1600);
+    h+=ridge(lon,lat,8.5,44.3,13.2,42.6,0.45,1300)+ridge(lon,lat,13.2,42.6,16,40.3,0.45,1100)+ridge(lon,lat,14.5,45.5,19,42.7,1.1,1300)+ridge(lon,lat,19,42.7,22,38.5,0.8,1500)+ridge(lon,lat,22.5,43.3,26.5,42.7,0.5,1200)+900*g(lon,lat,24,41.7,2,0.6);
+    h+=800*g(lon,lat,3,45.3,1.5,1)+350*g(lon,lat,10,50.5,25,2)+500*g(lon,lat,8.2,48,0.5,1)+600*g(lon,lat,-4.5,57,2,1)+700*g(lon,lat,-18.5,64.9,8,1.5)+500*g(lon,lat,14,63,8,6);
+    return h+25*Math.sin(lon*1.7)*Math.cos(lat*1.3)+15*Math.sin(lon*4.1+lat*3.3)},
+  cell(lon,lat,D){const dc=Math.min(D.dE,D.dW,D.dN,D.dS);let h=this.elev(lon,lat);h=20+(h-20)*Math.min(1,(dc+0.3)/1.5);
+    const med=sig((44.5-lat)/1.2),sr=(lat>58&&lat<70.5&&lon>lerpT(SCAN,lat)+0.5)?0.7:1,T=[],P=[];
+    const Ta=17.5-0.48*(lat-38)-0.09*Math.max(0,lon-5)*(1-med)-0.0045*Math.max(0,h)+2.5*Math.exp(-D.dW/2)*sig((lat-55)/2);
+    const amp=(6.5+0.15*Math.max(0,lon+10)*(1-0.6*med))*(0.8+0.2*Math.min(1,dc/3))+1.5*g(lon,lat,-4,40,10,8)+3*med+(sr<1?2.5:0);
+    for(let m=0;m<12;m++){const s=Math.cos(2*Math.PI*m/12);T.push(Ta-amp*s);
+      let p=60*(0.45+0.55*Math.exp(-D.dW/8))*(1+0.25*s);
+      p+=90*Math.exp(-D.dW)*(1+0.4*s)*sig((lat-42)/1);
+      p+=(30+20*sig((lon-5)/5))*Math.max(0,-s)*sig((lon+2)/4)*(1-med);
+      p+=45*med*Math.max(0,s);
+      p*=1-0.85*med*Math.max(0,-s);
+      p*=(1-0.45*g(lon,lat,-3.5,39.5,10,6))*(1-0.35*g(lon,lat,-1.5,37.5,2,1.5))*(1-0.35*g(lon,lat,24,38,3,2));
+      p*=sr*(1+Math.min(1.5,Math.max(0,h-300)/1200));P.push(p+5)}
+    return{h,T,P}}
+};
+const RU={
+  L0:19,L1:180,T0:82,T1:41,EX:0.0006,xs:0.5,cam:[0,40,44],target:[0,0,2],
+  focus:x=>String(x.id)==='643',
+  pins:[['モスクワ',37.6,55.75],['サンクトペテルブルク',30.3,59.95],['ノヴォシビルスク',82.9,55.0],['ヤクーツク',129.7,62.03],['ウラジオストク',131.9,43.12]],start:[129.7,62.03],
+  elev(lon,lat){let h=130;
+    h+=ridge(lon,lat,59,51,59.5,55,0.9,700)+ridge(lon,lat,59.5,55,59,61,0.9,600)+ridge(lon,lat,59,61,61,65,0.9,900)+ridge(lon,lat,61,65,65,68.5,0.9,1000);
+    h+=500*g(lon,lat,101,64,180,30)+1100*g(lon,lat,93,69,6,2);
+    h+=ridge(lon,lat,84,50,89,50.5,1.4,2400)+ridge(lon,lat,89,50.5,96,51.5,1.4,2000)+ridge(lon,lat,96,51.5,102,52,1.2,2000)+ridge(lon,lat,104,51.5,110,55,1.8,1400)+ridge(lon,lat,110,55,116,57,1.8,1300);
+    h+=ridge(lon,lat,118,56,127,55.5,1.5,1400)+ridge(lon,lat,127,55.5,135,56.5,1.5,1300)+800*g(lon,lat,125,58,25,4);
+    h+=ridge(lon,lat,126,61,130,66,1.8,1600)+ridge(lon,lat,130,66,127,70,1.8,1300)+ridge(lon,lat,135,63,143,66,1.8,1900)+ridge(lon,lat,143,66,150,68,1.8,1500);
+    h+=900*g(lon,lat,155,63,60,8)+700*g(lon,lat,172,66,40,4)+ridge(lon,lat,163,61,172,63,1.5,1100);
+    h+=ridge(lon,lat,156.5,51.5,160,56,0.8,1500)+ridge(lon,lat,160,56,162,58.5,0.8,1200)+3800*g(lon,lat,160.6,56.06,0.08,0.05);
+    h+=ridge(lon,lat,133,43.5,137,46.5,0.8,1000)+ridge(lon,lat,137,46.5,140,50,0.8,900)+ridge(lon,lat,142.5,46.5,143,54,0.4,900);
+    h+=ridge(lon,lat,37.5,44.5,42.5,43.3,0.5,3200)+ridge(lon,lat,42.5,43.3,47,42,0.5,3000)+2200*g(lon,lat,42.45,43.35,0.05,0.03)+800*g(lon,lat,33.7,67.7,0.5,0.15)+250*g(lon,lat,40,52,40,10);
+    return h+25*Math.sin(lon*1.7)*Math.cos(lat*1.3)+15*Math.sin(lon*4.1+lat*3.3)},
+  cell(lon,lat,D){const dc=Math.min(D.dE,D.dW,D.dN,D.dS);let h=this.elev(lon,lat);h=20+(h-20)*Math.min(1,(dc+0.3)/1.5);
+    let Tjul=26-0.45*(lat-45)-6*Math.exp(-D.dN/3)-7*Math.exp(-D.dE/2)*sig((lon-130)/3);
+    let Tjan=-2-0.2*(lon-30)-0.35*(lat-45)-15*g(lon,lat,128,65,400,40)+16*Math.exp(-(lon>140?dc:D.dE)/2)*sig((lon-125)/4)+6*g(lon,lat,159,55,20,30)+9*Math.exp(-Math.min(D.dS,D.dW)/1.5)*sig((47-lat)/1);
+    const lap=0.0055*Math.max(0,h);Tjul-=lap;Tjan-=lap;
+    const mid=(Tjul+Tjan)/2,half=(Tjul-Tjan)/2,T=[],P=[];
+    const atl=30*Math.exp(-(lon-20)/40),dry=0.85*sig((lon-80)/10)*(1-Math.exp(-dc/1.5)*sig((lon-152)/2));
+    for(let m=0;m<12;m++){const s=Math.cos(2*Math.PI*m/12);T.push(mid-half*s);
+      let p=20+atl+(30+30*sig((lon-90)/10))*Math.max(0,-s);
+      p+=100*Math.max(0,-s)*Math.exp(-D.dE/6)*sig((lon-125)/4)*sig((55-lat)/2);
+      p+=60*Math.exp(-dc/1.5)*sig((lon-150)/3);
+      p*=1-dry*Math.max(0,s);
+      p+=120*g(lon,lat,40,43.7,3,1);
+      p*=(1-0.8*g(lon,lat,47,46.5,30,8))*(1-0.4*g(lon,lat,125,63,250,40));
+      if(lat>70)p*=0.8;
+      p*=1+Math.min(1,Math.max(0,h-400)/1500);P.push(p+4)}
+    return{h,T,P}}
+};
+const REGIONS={'south-america':SA,'africa':AF,'europe':EU,'russia':RU};
+
+function kop(T,P,lat){const Ta=T.reduce((a,b)=>a+b)/12,Pa=P.reduce((a,b)=>a+b),Tn=Math.min(...T),Tx=Math.max(...T);
+  const S=lat<0?[9,10,11,0,1,2]:[3,4,5,6,7,8],Wn=[0,1,2,3,4,5,6,7,8,9,10,11].filter(i=>!S.includes(i));
+  const Ps=S.reduce((a,i)=>a+P[i],0),Pw=Pa-Ps;
+  if(Tx<10)return Tx<0?'EF':'ET';
+  const th=20*Ta+(Ps>=0.7*Pa?280:Pw>=0.7*Pa?0:140);
+  if(Pa<th)return(Pa<th/2?'BW':'BS')+(Ta>=18?'h':'k');
+  if(Tn>=18){const pm=Math.min(...P);return pm>=60?'Af':pm>=100-Pa/25?'Am':'Aw'}
+  const sm=Math.min(...S.map(i=>P[i])),sx=Math.max(...S.map(i=>P[i])),wm=Math.min(...Wn.map(i=>P[i])),wx=Math.max(...Wn.map(i=>P[i]));
+  const b=(sm<40&&sm<wx/3&&Math.abs(lat)>=10)?'s':(wm<sx/10)?'w':'f';
+  if(Tn<=-3){const c2=Tn<-38?'d':Tx>=22?'a':T.filter(t=>t>=10).length>=4?'b':'c';return 'D'+b+c2}
+  const c=Tx>=22?'a':T.filter(t=>t>=10).length>=4?'b':'c';return 'C'+b+c}
+
+const GROUPS=[['Af','熱帯雨林気候','#C9535C'],['Am','弱い乾季のある熱帯雨林気候','#E09A4F'],['Aw','サバナ気候','#E8D4E3'],['BW','砂漠気候','#E3CF2B'],['BS','ステップ気候','#EFE7B3'],['Cfa','温暖湿潤気候','#A8BE68'],['Cfb','西岸海洋性気候','#A6CBD0'],['Cs','地中海性気候','#D2B069'],['Cw','温暖冬季少雨気候','#D7D36B'],['Df','亜寒帯（冷帯）湿潤気候','#D8C7DE'],['Dw','亜寒帯（冷帯）冬季少雨気候','#A6A0CB'],['ET','ツンドラ気候','#D8E6EC'],['EF','氷雪気候','#6EA2D3']];
+const GMAP=Object.fromEntries(GROUPS.map(x=>[x[0],x]));
+function group(k){if(k[0]==='D')return k[1]==='w'?'Dw':'Df';if(k==='Af'||k==='Am'||k==='Aw'||k==='Cfa'||k==='ET'||k==='EF'||k==='Df'||k==='Dw')return k;if(k[0]==='B')return k.slice(0,2);if(k==='Cfb'||k==='Cfc')return 'Cfb';return k.slice(0,2)}
+
+const R=4,SEA=[46,104,150],OTHER=[196,194,186];
+const relief=[[0,[79,138,60]],[200,[90,145,64]],[800,[169,180,94]],[1800,[196,154,98]],[3200,[125,92,64]],[4400,[238,238,234]]];
+function reliefColor(h){for(let i=1;i<relief.length;i++){if(h<relief[i][0]){const a=relief[i-1],b=relief[i],k=Math.max(0,(h-a[0])/(b[0]-a[0]));return a[1].map((v,j)=>v+(b[1][j]-v)*k)}}return relief[relief.length-1][1]}
+function rgb(s){const c=d3.color(s);return[c.r,c.g,c.b]}
+const tempColor=t=>rgb(d3.interpolateRdYlBu(1-Math.min(1,Math.max(0,(t+5)/40))));
+const precColor=p=>rgb(d3.interpolateYlGnBu(Math.min(1,Math.sqrt(p/400))));
+
+function build(reg,ALL,FOC,GW,GH){const N=GW*GH,dE=new Float32Array(N),dW=new Float32Array(N),dN=new Float32Array(N),dS=new Float32Array(N),wl=new Float32Array(N);
+  for(let r=0;r<GH;r++){let d=99,lo=-99;for(let c=0;c<GW;c++){const i=r*GW+c;if(!ALL[i]){d=0;lo=reg.L0+c/R}else d+=1/R;dW[i]=d;wl[i]=lo}
+    d=99;for(let c=GW-1;c>=0;c--){const i=r*GW+c;if(!ALL[i])d=0;else d+=1/R;dE[i]=d}}
+  for(let c=0;c<GW;c++){let d=99;for(let r=0;r<GH;r++){const i=r*GW+c;if(!ALL[i])d=0;else d+=1/R;dN[i]=d}
+    d=99;for(let r=GH-1;r>=0;r--){const i=r*GW+c;if(!ALL[i])d=0;else d+=1/R;dS[i]=d}}
+  const HH=new Float32Array(N),TT=new Float32Array(N*12),PP=new Float32Array(N*12),KK=new Array(N);
+  for(let i=0;i<N;i++){const c=i%GW,r=Math.floor(i/GW),lon=reg.L0+c/R,lat=reg.T0-r/R;
+    if(!ALL[i]){HH[i]=-400;continue}if(!FOC[i]){HH[i]=20;continue}
+    const o=reg.cell(lon,lat,{dE:dE[i],dW:dW[i],dN:dN[i],dS:dS[i],wl:wl[i]});HH[i]=o.h;TT.set(o.T,i*12);PP.set(o.P,i*12);KK[i]=kop(o.T,o.P,lat)}
+  return{HH,TT,PP,KK}}
+
+const stage=document.getElementById('stage'),statusEl=document.getElementById('status'),labelsEl=document.getElementById('labels');
+let W=stage.clientWidth,H=stage.clientHeight;
+const ren=new THREE.WebGLRenderer({antialias:true,alpha:true});ren.setPixelRatio(Math.min(2,window.devicePixelRatio||1));ren.setSize(W,H);stage.insertBefore(ren.domElement,stage.firstChild);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(42,W/H,0.1,600);
+const ctl=new THREE.OrbitControls(cam,ren.domElement);ctl.enableDamping=true;ctl.maxPolarAngle=1.45;ctl.minDistance=12;ctl.maxDistance=150;
+scene.add(new THREE.AmbientLight(0xffffff,0.6));const sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(-30,40,20);scene.add(sun);
+const group3=new THREE.Group();scene.add(group3);
+
+let world=null,cur=null,mode='koppen',month=0,timer=null,pins=[],marker=null,selected=null;
+const cache={};
+
+function mask(ctx,proj,feature,GW,GH){ctx.clearRect(0,0,GW,GH);ctx.fillStyle='#000';ctx.beginPath();d3.geoPath(proj,ctx)(feature);ctx.fill();
+  const d=ctx.getImageData(0,0,GW,GH).data,m=new Uint8Array(GW*GH);for(let i=0;i<m.length;i++)m[i]=d[i*4+3]>110?1:0;return m}
+
+function compute(key){if(cache[key])return cache[key];const reg=REGIONS[key],GW=(reg.L1-reg.L0)*R+1,GH=(reg.T0-reg.T1)*R+1;
+  const cv=document.createElement('canvas');cv.width=GW;cv.height=GH;const ctx=cv.getContext('2d',{willReadFrequently:true});
+  const proj=d3.geoEquirectangular().scale(R*180/Math.PI).translate([-reg.L0*R,reg.T0*R]);
+  const ALL=mask(ctx,proj,topojson.feature(world,world.objects.land),GW,GH);
+  let FOC=ALL;if(reg.focus){FOC=mask(ctx,proj,topojson.merge(world,world.objects.countries.geometries.filter(reg.focus)),GW,GH);for(let i=0;i<FOC.length;i++)FOC[i]=FOC[i]&&ALL[i]?1:0}
+  const o=build(reg,ALL,FOC,GW,GH);
+  const geo=new THREE.PlaneGeometry((reg.L1-reg.L0)*(reg.xs||1),reg.T0-reg.T1,GW-1,GH-1);geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position;for(let i=0;i<pos.count;i++)pos.setY(i,o.HH[i]*reg.EX);
+  geo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(pos.count*3),3));geo.computeVertexNormals();
+  const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));
+  const used=new Set();for(let i=0;i<FOC.length;i++)if(FOC[i])used.add(group(o.KK[i]));
+  return cache[key]={key,reg,GW,GH,ALL,FOC,...o,geo,mesh,used}}
+
+function toXZ(reg,lon,lat){return[(lon-(reg.L0+reg.L1)/2)*(reg.xs||1),(reg.T0+reg.T1)/2-lat]}
+function idx(lon,lat){const c=Math.round((lon-cur.reg.L0)*R),r=Math.round((cur.reg.T0-lat)*R);if(c<0||r<0||c>=cur.GW||r>=cur.GH)return -1;return r*cur.GW+c}
+
+function recolor(){if(!cur)return;const col=cur.geo.attributes.color.array,N=cur.ALL.length;
+  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
+    col[i*3]=k[0]/255;col[i*3+1]=k[1]/255;col[i*3+2]=k[2]/255}
+  cur.geo.attributes.color.needsUpdate=true;drawLegend()}
+
+function drawLegend(){const L=document.getElementById('legend');let h='';
+  if(mode==='koppen')h=GROUPS.filter(x=>cur.used.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i><b>${x[0]}</b>${x[1]}</span>`).join('');
+  else if(mode==='terrain')h=[['低地',0],['〜800m',500],['〜1800m',1300],['〜3200m',2500],['4000m〜',4300]].map(a=>`<span><i style="background:rgb(${reliefColor(a[1]).map(Math.round)})"></i>${a[0]}</span>`).join('');
+  else if(mode==='temp')h=[-5,5,15,25,35].map(t=>`<span><i style="background:rgb(${tempColor(t)})"></i>${t}℃</span>`).join('')+'<span>（'+(month+1)+'月の平均気温）</span>';
+  else h=[0,25,100,200,400].map(p=>`<span><i style="background:rgb(${precColor(p)})"></i>${p}mm</span>`).join('')+'<span>（'+(month+1)+'月の降水量）</span>';
+  L.innerHTML=h}
+
+function token(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888'}
+function probe(lon,lat){if(!cur)return;const i=idx(lon,lat);if(i<0)return;
+  const t=document.getElementById('p-title'),m=document.getElementById('p-meta');
+  if(!cur.ALL[i]){t.textContent='海の上です';m.textContent='陸地をタップしてください';return}
+  if(!cur.FOC[i]){t.textContent='計算対象の外です';m.textContent='この大陸以外の陸地は灰色で表示しています';return}
+  selected=[lon,lat];
+  const T=Array.from(cur.TT.slice(i*12,i*12+12)),P=Array.from(cur.PP.slice(i*12,i*12+12)),k=cur.KK[i],gr=GMAP[group(k)];
+  const [x,z]=toXZ(cur.reg,lon,lat);marker.position.set(x,Math.max(0,cur.HH[i])*cur.reg.EX+1.3,z);marker.visible=true;
+  t.innerHTML=`<span style="display:inline-block;width:14px;height:14px;border:1px solid rgba(0,0,0,.35);vertical-align:-2px;margin-right:6px;background:${gr[2]}"></span>${gr[1]}<span style="font:500 13px var(--font-data);color:var(--muted);margin-left:8px">${k}</span>`;
+  const Ta=T.reduce((a,b)=>a+b)/12,Pa=P.reduce((a,b)=>a+b);
+  m.textContent=`${Math.abs(lat).toFixed(1)}°${lat<0?'S':'N'} ${Math.abs(lon).toFixed(1)}°${lon<0?'W':'E'} ／ 標高 ${Math.round(Math.max(0,cur.HH[i]))}m ／ 年平均 ${Ta.toFixed(1)}℃ ／ 年降水量 ${Math.round(Pa)}mm`;
+  drawChart(T,P)}
+
+function drawChart(T,P){const cv=document.getElementById('chart'),c=cv.getContext('2d'),W2=cv.width,H2=cv.height;
+  const fg=token('--muted'),line=token('--line');c.clearRect(0,0,W2,H2);
+  const l=44,r=W2-48,t0=12,b0=H2-26,bw=(r-l)/12,tmin=Math.min(-10,Math.floor(Math.min(...T)/10)*10),tmax=Math.max(30,Math.ceil(Math.max(...T)/10)*10),nG=(tmax-tmin)/10,stepP=[10,20,25,40,50,60,80,100,150,200].find(v=>v*nG>=Math.max(...P))||Math.ceil(Math.max(...P)/nG/100)*100,pm=Math.max(stepP,Math.ceil(300/nG/10)*10)*nG;
+  c.font='12px "IBM Plex Mono", monospace';c.strokeStyle=line;c.lineWidth=1;
+  for(let v=tmin;v<=tmax;v+=10){const y=b0-(v-tmin)/(tmax-tmin)*(b0-t0);c.beginPath();c.moveTo(l,y);c.lineTo(r,y);c.stroke();c.fillStyle='#D85A30';c.textAlign='right';c.fillText(v+'℃',l-6,y+4);
+    c.fillStyle='#378ADD';c.textAlign='left';c.fillText(Math.round(pm*(v-tmin)/(tmax-tmin)),r+6,y+4)}
+  P.forEach((p,j)=>{c.fillStyle='#378ADD';const hh=p/pm*(b0-t0);c.fillRect(l+j*bw+5,b0-hh,bw-10,hh);c.fillStyle=fg;c.textAlign='center';c.fillText(j+1,l+j*bw+bw/2,b0+17)});
+  c.strokeStyle='#D85A30';c.lineWidth=2.5;c.beginPath();T.forEach((tv,j)=>{const y=b0-(tv-tmin)/(tmax-tmin)*(b0-t0),x=l+j*bw+bw/2;j?c.lineTo(x,y):c.moveTo(x,y)});c.stroke();
+  c.fillStyle='#D85A30';T.forEach((tv,j)=>{const y=b0-(tv-tmin)/(tmax-tmin)*(b0-t0);c.beginPath();c.arc(l+j*bw+bw/2,y,3,0,7);c.fill()})}
+
+function showRegion(key){if(!REGIONS[key])key='africa';
+  document.querySelectorAll('[data-region]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.region===key));
+  if(!world)return;
+  statusEl.hidden=false;statusEl.textContent='計算中…';
+  setTimeout(()=>{try{
+    while(group3.children.length)group3.remove(group3.children[0]);labelsEl.innerHTML='';pins=[];
+    cur=compute(key);const reg=cur.reg;group3.add(cur.mesh);
+    reg.pins.forEach(p=>{const i=idx(p[1],p[2]),[x,z]=toXZ(reg,p[1],p[2]),y=Math.max(0,i<0?0:cur.HH[i])*reg.EX;
+      const s=new THREE.Mesh(new THREE.SphereGeometry(0.45,14,10),new THREE.MeshBasicMaterial({color:0x2C2C2A}));s.position.set(x,y+0.9,z);group3.add(s);
+      const el=document.createElement('span');el.textContent=p[0];labelsEl.appendChild(el);pins.push([s.position,el])});
+    marker=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.5,12),new THREE.MeshBasicMaterial({color:0xD85A30}));marker.rotation.x=Math.PI;marker.visible=false;group3.add(marker);
+    cam.position.set(...reg.cam);ctl.target.set(...reg.target);ctl.update();
+    recolor();probe(...reg.start);statusEl.hidden=true}catch(e){statusEl.textContent='計算に失敗しました：'+e.message}},30)}
+
+document.querySelectorAll('[data-region]').forEach(b=>b.onclick=()=>{if(location.hash!=='#'+b.dataset.region)location.hash=b.dataset.region;else showRegion(b.dataset.region)});
+window.addEventListener('hashchange',()=>showRegion(location.hash.slice(1)));
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode===m));recolor()}
+const slider=document.getElementById('month'),out=document.getElementById('month-out'),play=document.getElementById('play');
+function setMonth(m){month=m;slider.value=m+1;out.textContent=(m+1)+'月';if(mode==='temp'||mode==='prec')recolor()}
+slider.oninput=()=>setMonth(+slider.value-1);
+play.onclick=()=>{if(timer){clearInterval(timer);timer=null;play.textContent='▶';play.setAttribute('aria-label','月を再生')}else{if(mode!=='temp'&&mode!=='prec')setMode('prec');timer=setInterval(()=>setMonth((month+1)%12),700);play.textContent='❚❚';play.setAttribute('aria-label','一時停止')}};
+
+let down=null;const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+ren.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+ren.domElement.addEventListener('pointerup',e=>{if(!down||!cur)return;if(Math.hypot(e.clientX-down[0],e.clientY-down[1])>6)return;
+  const rc=ren.domElement.getBoundingClientRect();ndc.set((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1);ray.setFromCamera(ndc,cam);
+  const hit=ray.intersectObject(cur.mesh)[0];if(hit)probe(hit.point.x/(cur.reg.xs||1)+(cur.reg.L0+cur.reg.L1)/2,(cur.reg.T0+cur.reg.T1)/2-hit.point.z)});
+
+const v=new THREE.Vector3();
+function loop(){requestAnimationFrame(loop);ctl.update();ren.render(scene,cam);
+  pins.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=v.z>=1})}
+loop();
+new ResizeObserver(()=>{W=stage.clientWidth;H=stage.clientHeight;ren.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix()}).observe(stage);
+const mq=window.matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',()=>{if(cur&&selected)probe(...selected)});
+
+const getJSON=u=>fetch(u).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()});
+getJSON('countries-50m.json').catch(()=>getJSON('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json')).then(w=>{world=w;showRegion(location.hash.slice(1)||'africa')})
+  .catch(e=>{statusEl.textContent='地図データを読み込めませんでした（'+e.message+'）。ページを再読み込みしてください'});
+</script>
+
+</body>
+</html>
