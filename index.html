@@ -51,6 +51,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pd.open{font-size:12px;z-index:4;padding:0 6px}.pd .pdn{position:static;transform:none;border:0;background:none;padding:0}
 .pdlegend .pd{position:static;transform:none;margin-right:6px;cursor:default;pointer-events:none}
 .pdlegend .pdl{display:inline-flex;align-items:center}
+.info{background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
+.info .ih{display:flex;align-items:center;gap:8px;font-size:16px}.info .ih .pd{position:static;transform:none;pointer-events:none}
+.info .ih button{margin-left:auto;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:6px;padding:3px 10px;cursor:pointer;font:13px var(--font-body)}
+.info p{margin:0;font-size:14px;line-height:1.7;max-width:70ch}.info .in{color:var(--muted);font-size:12.5px}
+.pdlegend .pdl{cursor:pointer;border-radius:6px;padding:1px 4px 1px 0}.pdlegend .pdl:hover{background:var(--accent-soft)}
 .hint{position:absolute;left:8px;bottom:8px;margin:0;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 6px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -78,6 +83,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="chip" id="m-koppen" data-mode="koppen" aria-pressed="true">気候区分</button>
     <button class="chip" id="m-temp" data-mode="temp" aria-pressed="false">気温</button>
     <button class="chip" id="m-prec" data-mode="prec" aria-pressed="false">降水量</button>
+    <button class="chip" id="m-tect" data-mode="tect" aria-pressed="false" hidden>地体構造</button>
     <span style="flex:1"></span>
     <button class="chip" id="pins-toggle" aria-pressed="false">都市名を隠す</button>
   </div>
@@ -101,6 +107,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <p id="status">計算中…</p>
     <p class="hint">ドラッグで回転・ピンチで拡大・タップで地点の雨温図</p>
   </div>
+  <div class="info" id="info" hidden></div>
   <div class="legend" id="legend"></div>
   <ul class="lw" id="localwinds" hidden></ul>
   <div class="legend pdlegend" id="productlegend" hidden></div>
@@ -477,13 +484,15 @@ function compute(key){if(cache[key])return cache[key];const reg=REGIONS[key],GW=
 function toXZ(reg,lon,lat){return[(lon-(reg.L0+reg.L1)/2)*(reg.xs||1),(reg.T0+reg.T1)/2-lat]}
 function idx(lon,lat){const c=Math.round((lon-cur.reg.L0)*R),r=Math.round((cur.reg.T0-lat)*R);if(c<0||r<0||c>=cur.GW||r>=cur.GH)return -1;return r*cur.GW+c}
 
-function recolor(){if(!cur)return;const col=cur.geo.attributes.color.array,N=cur.ALL.length;
-  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(cur.EDGE[i])k=BORDER;else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
+function recolor(){if(!cur)return;const col=cur.geo.attributes.color.array,N=cur.ALL.length,dimMask=(typeof SEL!=='undefined'&&SEL&&SEL.mask)?SEL.mask:null;
+  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(cur.EDGE[i])k=BORDER;else if(mode==='tect'){const t=tectArr();k=rgb(TECT_NAME[(t&&t[i])||1][1])}else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
+    if(dimMask&&cur.FOC[i]&&!cur.EDGE[i]&&!dimMask[i])k=[k[0]*0.25+110,k[1]*0.25+110,k[2]*0.25+110];
     col[i*3]=k[0]/255;col[i*3+1]=k[1]/255;col[i*3+2]=k[2]/255}
   cur.geo.attributes.color.needsUpdate=true;drawLegend()}
 
 function drawLegend(){const L=document.getElementById('legend');let h='';
   if(mode==='koppen')h=GROUPS.filter(x=>cur.used.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i><b>${x[0]}</b>${x[1]}</span>`).join('');
+  else if(mode==='tect')h=[1,2,3].map(t=>`<span><i style="background:${TECT_NAME[t][1]}"></i><b>${TECT_NAME[t][0]}</b>${TECT_NAME[t][2]}</span>`).join('')+'<span style="color:var(--muted)">※西シベリア低地や東シベリアの山地など、教科書によって区分が違う地域があります</span>';
   else if(mode==='terrain')h=[['低地',0],['〜800m',500],['〜1800m',1300],['〜3200m',2500],['4000m〜',4300]].map(a=>`<span><i style="background:rgb(${reliefColor(a[1]).map(Math.round)})"></i>${a[0]}</span>`).join('');
   else if(mode==='temp')h=[-5,5,15,25,35].map(t=>`<span><i style="background:rgb(${tempColor(t)})"></i>${t}℃</span>`).join('')+'<span>（'+(month+1)+'月の平均気温）</span>';
   else h=[0,25,100,200,400].map(p=>`<span><i style="background:rgb(${precColor(p)})"></i>${p}mm</span>`).join('')+'<span>（'+(month+1)+'月の降水量）</span>';
@@ -633,8 +642,8 @@ const MN_KIND={oil:['油','石油','#1d1d1f'],gas:['ガ','天然ガス','#5b6470
 const AGRI=[
  ['africa','cacao',-5.5,7],['africa','cacao',-1.5,6.8],['africa','cacao',5,7.3],['africa','cacao',12,4.5],
  ['africa','coffee',38.5,7.5],['africa','coffee',32.5,1],['africa','coffee',37,-3.5],['africa','tea',35.3,-0.4],['africa','tea',34.5,-15.5],
- ['africa','palm',7,5.3],['africa','peanut',-15.5,14.5],['africa','peanut',8,12],['africa','cotton',31,30.6],['africa','cotton',33,14.3],['africa','cotton',-6,12.5],
- ['africa','date',30.5,25.5],['africa','date',5.5,32],['africa','olive',10.2,35],['africa','olive',-5.5,33.8],['africa','citrus',-9,30.4],['africa','grape',19,-33.7],
+ ['africa','palm',7,5.3],['africa','peanut',-14.8,13.9],['africa','peanut',8,12],['africa','cotton',31,30.6],['africa','cotton',33,14.3],['africa','cotton',-6,12.5],
+ ['africa','date',30.5,25.5],['africa','date',5.5,32],['africa','olive',10.2,35],['africa','olive',-5.5,33.8],['africa','citrus',-6.3,34.3],['africa','grape',19,-33.7],
  ['africa','corn',27,-27],['africa','corn',28,-14],['africa','cane',31,-29],['africa','vanilla',49.5,-14.5],['africa','sheep',22,-31.5],['africa','rubber',-9.5,6.5],['africa','wheat',-6.8,34.5],
  ['europe','wheat',2,48.5],['europe','wheat',33,48.5],['europe','wheat',19.5,47],['europe','wheat',-1,52.5],
  ['europe','grape',-0.5,44.8],['europe','grape',4,47.5],['europe','grape',11.2,43.4],['europe','grape',-2.5,42.4],['europe','grape',-7.6,41.2],['europe','grape',7.5,50],
@@ -660,15 +669,92 @@ function badgeClass(kind,isMine){return isMine?('pd mine'+(kind==='dia'?' icon':
 function badgeStyle(kind,isMine){return isMine&&MN_KIND[kind][2]?'background:'+MN_KIND[kind][2]:''}
 function productBadge(kind,isMine){const el=document.createElement('button');el.type='button';const name=isMine?MN_KIND[kind][1]:AG_KIND[kind];
   el.className=badgeClass(kind,isMine);el.style.cssText=badgeStyle(kind,isMine);el.innerHTML=badgeInner(kind,isMine,18);el.dataset.name=name;el.setAttribute('aria-label',name);el.title=name;
-  el.onclick=e=>{e.stopPropagation();const open=el.classList.toggle('open');el.innerHTML=badgeInner(kind,isMine,18)+(open?'<span class="pdn">'+name+'</span>':'')};
+  el.dataset.kind=kind;el.dataset.mine=String(isMine);if(typeof SEL!=='undefined'&&SEL&&SEL.kind===kind&&SEL.mine===isMine){el.classList.add('open');el.innerHTML+='<span class="pdn">'+name+'</span>'}
+  el.onclick=e=>{e.stopPropagation();selectProduct(kind,isMine)};
   return el}
 function buildProducts(reg,S){const items=[];
   const add=(arr,isMine)=>arr.forEach(([tag,kind,lon,lat])=>{if(tag!==cur.key)return;const [x,z]=toXZ(reg,lon,lat);const pos=new THREE.Vector3(x,hAtLL(lon,lat)+S*0.01,z);
     const el=productBadge(kind,isMine);ovLabelsEl.appendChild(el);ovLabels.push([pos,el]);items.push([isMine,kind])});
   if(OV.agri)add(AGRI,false);if(OV.mine)add(MINE,true);
   const seen=new Set(),leg=[];items.forEach(([m,k])=>{const id=(m?'m':'a')+k;if(seen.has(id))return;seen.add(id);
-    leg.push(`<span class="pdl"><span class="${badgeClass(k,m)}" style="${badgeStyle(k,m)}">${badgeInner(k,m,18)}</span>${m?MN_KIND[k][1]:AG_KIND[k]}</span>`)});
-  const box=document.getElementById('productlegend');box.innerHTML=leg.join('');box.hidden=!leg.length}
+    leg.push(`<span class="pdl" role="button" tabindex="0" data-kind="${k}" data-mine="${m}"><span class="${badgeClass(k,m)}" style="${badgeStyle(k,m)}">${badgeInner(k,m,18)}</span>${m?MN_KIND[k][1]:AG_KIND[k]}</span>`)});
+  const box=document.getElementById('productlegend');box.innerHTML=leg.join('');box.hidden=!leg.length;
+  box.querySelectorAll('.pdl').forEach(el=>el.onclick=()=>selectProduct(el.dataset.kind,el.dataset.mine==='true'))}
+
+function segDist(x,y,x1,y1,x2,y2){const dx=x2-x1,dy=y2-y1,L=dx*dx+dy*dy;let t=((x-x1)*dx+(y-y1)*dy)/L;t=Math.max(0,Math.min(1,t));return Math.hypot(x-x1-t*dx,y-y1-t*dy)}
+function polyDist(x,y,pl){let d=1e9;for(let k=0;k<pl.length-1;k++)d=Math.min(d,segDist(x,y,pl[k][0],pl[k][1],pl[k+1][0],pl[k+1][1]));return d}
+const ALPINE=[[[-9.5,30.5],[-4,32.5],[3,34.8],[9.5,36.5]],[[-1.8,43],[3,42.6]],[[-5.5,36.6],[-2,37.2],[0,38.6]],[[5.5,44.2],[7,46],[10.5,46.5],[13.5,47],[16,47.8]],[[8.5,44.3],[13.2,42.6],[16,40.3],[16,38],[13.5,37.8]],[[14.5,45.5],[19,42.7],[20.5,40.5],[22,38.5],[22.5,37]],[[22.5,43.3],[26.5,42.7]],[[17.5,48.5],[20,49.3],[23,48.8],[25.5,47.5],[26,45.6],[22.5,45.4]],[[23.5,35.3],[26,35.2]]];
+const TORNQ=[[57.5,8],[55,14],[52,18],[49.5,24],[47,27],[45.5,28.5]];
+const TECT={
+ africa(lon,lat){if(polyDist(lon,lat,ALPINE[0])<1.6||(lat>34.5&&lon<11.5))return 3;
+   if(lat<-32.6&&lon<27)return 2;if(polyDist(lon,lat,[[27,-33],[28.5,-31],[29.3,-29.5],[30.5,-27],[31,-24.5]])<1.4)return 2;return 1},
+ europe(lon,lat){if(lon<-12&&lat>62)return 3;for(const pl of ALPINE)if(polyDist(lon,lat,pl)<1.3)return 3;if(lat<38.6&&lon>11.8&&lon<16&&lat>36.5)return 3;
+   if(lat>57.5&&lon>lerpT(SCAN,lat)-1.8&&lon<lerpT(SCAN,lat)+1.6)return 2;
+   if(lat>58&&lon>lerpT(SCAN,Math.min(70,lat))+1.6)return 1;if(lat>60&&lon>21)return 1;
+   const tl=lerpT(TORNQ,Math.max(45.5,Math.min(57.5,lat)));if(lat<57.5&&lon>tl)return 1;return 2},
+ russia(lon,lat){if(lat<45&&lon<50)return 3;if(lon>155&&lat<62)return 3;if(lon>140.5&&lon<145.5&&lat>45.5&&lat<54.5)return 3;
+   const ural=lat>50&&lat<70?Math.abs(lon-(lat<61?59.3:59+(lat-61)*0.7)):99;if(ural<2.2||(lon>50&&lon<70&&lat>70))return 2;
+   if(lon<58)return 1;if(lon<87)return 2;
+   const w=87-(lat-60)*0.25,e=120+(lat-55)*0.4,so=55+sq(lon-102)/180,no=73.5-Math.abs(lon-100)/14;if(lon>w&&lon<e&&lat>so&&lat<no)return 1;return 2}
+};
+const TECT_NAME={1:['安定陸塊','#C9A24A','先カンブリア時代の古い岩盤。平原や台地が多い。鉄鉱石・金・ダイヤモンドなど'],2:['古期造山帯','#9B7BD0','古生代に山脈ができ、長い侵食でなだらかになった地域。石炭が多い'],3:['新期造山帯','#EE7FA8','中生代以降に山脈ができた地域。高く険しい山脈・火山・地震。石油・銅など']};
+const CROP_RULE={
+ wheat:[(c)=>c.Ta>=1&&c.Ta<=18&&c.Pa>=300&&c.Pa<=1000&&c.Tx>=14&&c.Tn<18,'冷涼〜温暖で、年降水量500〜1000mmくらいのやや乾燥した地域。ステップ（BS）の湿った側から、Cfb・Dfの平原が適地。収穫期に乾燥する土地が向く。'],
+ corn:[(c)=>c.Tx>=20&&c.Pa>=500&&c.Pa<=2000,'夏に気温が高く（20℃以上）、雨が降る地域。Cfa・Dfa・Cwのほか、アフリカでは主食としてサバナでも広く作られる。'],
+ potato:[(c)=>c.Tx>=13&&c.Tx<=22&&c.Pa>=400&&c.Tn<10,'冷涼な気候を好み、夏が涼しい地域（Cfb・Df）で多い。寒くやせた土地でも育つので、北ヨーロッパやロシアで主食級。'],
+ beet:[(c)=>c.Tx>=15&&c.Tx<=22&&c.Pa>=450&&c.Pa<=1000&&c.Tn<6,'冷涼な地域の砂糖の原料（Cfb・Df）。熱帯のさとうきびに対し、ヨーロッパ・ロシアではてんさいで砂糖を作る。'],
+ grape:[(c)=>c.K.startsWith('Cs')||(c.Tx>=17&&c.Ta>=9&&c.Pa<=900&&c.Tn>-6&&c.K[0]!=='B'),'夏に乾燥して日照が多い地中海性気候（Cs）が最適。温暖なCfbの南向き斜面（フランス・ドイツのライン川沿い）でも栽培。'],
+ olive:[(c)=>c.K.startsWith('Cs'),'地中海性気候（Cs）の代表的な樹木作物。夏の乾燥に強く、冬の雨で育つ。地中海沿岸の分布＝Csの分布と考えてよい。'],
+ citrus:[(c)=>c.Tn>=6.5&&c.Tn<18&&c.Ta>=15&&c.Ta<=22&&(c.K[0]==='C'||c.K.startsWith('BS')),'冬も温暖で霜がほとんどない地域。地中海性気候（Cs）の夏の乾燥にも強い（スペインのバレンシアなど）。'],
+ sunflower:[(c)=>c.Tx>=19&&c.Pa>=350&&c.Pa<=750&&c.Tn<5,'夏が暑く、やや乾燥した草原（BSとDfaの境目）。ウクライナ・ロシア南部の黒土（チェルノーゼム）地帯で多い。'],
+ coffee:[(c)=>c.Ta>=16&&c.Ta<=25&&c.Tn>=12&&c.Pa>=1000,'熱帯の高原（標高1000〜2000m）で、雨季と乾季がある地域（Aw・Cwの高地）。暑すぎず霜も降りない。エチオピアが原産地。'],
+ cacao:[(c)=>c.Ta>=24&&c.Pa>=1400,'年中高温多雨（年平均24℃以上・年降水量1500mm前後以上）のAf・Amの低地。ギニア湾岸（コートジボワール・ガーナ）に集中。'],
+ palm:[(c)=>c.Ta>=24&&c.Pa>=1700,'年中高温多雨のAf・Amの低地。パーム油の原料。西アフリカが原産で、今はマレーシア・インドネシアが大産地。'],
+ peanut:[(c)=>c.Ta>=22&&c.Pa>=400&&c.Pa<=1300,'高温で、生育期に適度な雨がある地域（年500〜1200mm）。サバナ（Aw）やステップ（BSh）の湿った側（セネガル・ナイジェリア北部）。'],
+ tea:[(c)=>c.Ta>=14&&c.Ta<=24&&c.Pa>=1200&&c.Tn>=3,'高温多雨で水はけのよい斜面。熱帯では涼しい高原で作る（ケニアの高原）。'],
+ cotton:[(c)=>(c.nile&&c.Tx>=23)||(c.Tx>=25&&c.Tn>=5&&c.Pa>=400&&c.Pa<=1300),'生育期に高温で、霜のない期間が長く、収穫期に乾燥する地域。乾燥地でも川の水で灌漑して作る（エジプトのナイル川、スーダン）。'],
+ date:[(c)=>c.K==='BWh','高温乾燥の砂漠（BWh）のオアシスで栽培。地下水や川の水を使う。'],
+ cane:[(c)=>c.Ta>=19&&c.Pa>=1000,'高温多雨（年平均20℃以上）の熱帯〜亜熱帯。冷涼地のてんさいと対になる砂糖作物。'],
+ vanilla:[(c)=>c.Ta>=23&&c.Pa>=1800,'年中高温多雨の熱帯（Af）。マダガスカルが世界最大の産地。'],
+ dairy:[(c)=>c.Tx>=13&&c.Tx<=20&&c.Pa>=600,'冷涼で湿潤、牧草がよく育つ地域（Cfb・Df）。夏が涼しく穀物栽培に不利な土地や、大都市の近く。'],
+ sheep:[(c)=>c.K.startsWith('BS')||((c.K==='Cfb'||c.K==='Cfc')&&c.Tx<17),'乾燥した草原（ステップ・BS）や、冷涼で穀物が育ちにくい丘陵地（イギリスのウェールズ・スコットランドなど）。南アフリカのカルー、オーストラリア内陸も。'],
+ reindeer:[(c)=>c.K==='ET'||(c.K[0]==='D'&&c.Tx<14),'ツンドラ（ET）とその周辺で、トナカイを遊牧する。作物はほぼ育たない。'],
+ forest:[(c)=>c.K[0]==='D'&&c.Tx<19,'亜寒帯（Df・Dw）のタイガ。針葉樹林が広がり、木材やパルプの生産が盛ん。'],
+ rubber:[(c)=>c.Ta>=24&&c.Pa>=1800,'年中高温多雨の熱帯（Af）。天然ゴムの原産地は南アメリカのアマゾン。']
+};
+const MINE_RULE={
+ oil:[0,'地層がたまった大きな堆積盆地や、新期造山帯のまわりの地層が曲がった構造にたまりやすい。ニジェール川河口・北海・西シベリア・ペルシア湾岸など。'],
+ gas:[0,'石油と同じく堆積盆地に多い。ロシア（西シベリア）・北海・アルジェリアなど。'],
+ coal:[2,'古生代の植物が地層になったもの。古期造山帯のまわりに多い（ルール、シロンスク、ドンバス、クズバス、南アフリカ）。'],
+ fe:[1,'先カンブリア時代の古い地層（安定陸塊）に多い。スウェーデンのキルナ、ウクライナのクリヴィーリフ、ロシアのクルスクなど。'],
+ au:[1,'安定陸塊の古い地層に多い。南アフリカのウィットウォーターズランドは世界最大級の金鉱地帯。'],
+ dia:[1,'安定陸塊にある「キンバーライト」という古い火山岩に含まれる。ボツワナ・南アフリカ・コンゴ民主共和国・ロシアのサハ共和国。'],
+ cu:[0,'世界的には新期造山帯（チリ・ペルー）が大産地。アフリカではザンビアとコンゴ民主共和国の「カッパーベルト」に集中。'],
+ co:[0,'コンゴ民主共和国のカッパーベルトで銅と一緒に取れ、世界の約7割を占める。レアメタルの代表。'],
+ pt:[1,'南アフリカのブッシュフェルト（安定陸塊の古い火成岩体）に集中。白金・クロム・マンガンなどのレアメタル大国。'],
+ ni:[0,'古い火成岩に伴って取れる。ロシアのノリリスクは世界有数の産地。'],
+ u:[1,'古い地層の多い安定陸塊に多い（ニジェール・ナミビア、ほかにカザフスタン・カナダ・オーストラリア）。'],
+ al:[0,'高温多雨の熱帯で岩石が風化してできた赤い土（ラテライト）に含まれる。ギニアは世界有数の産地。ギリシャ・ハンガリーのものは昔の熱帯でできたもの。'],
+ p:[0,'昔の海の底にたまった堆積物。モロッコ（と西サハラ）は世界最大の埋蔵量。肥料の原料。'],
+ mn:[1,'安定陸塊の古い地層に多い。南アフリカ（カラハリ）が最大の産地。'],
+ k:[0,'昔の海が干上がってできた岩塩層に含まれる。ベラルーシ・ロシア・カナダが大産地。肥料の原料。']
+};
+let SEL=null;
+function cellStats(i){const T=cur.TT.slice(i*12,i*12+12),P=cur.PP.slice(i*12,i*12+12);let Ta=0,Pa=0,Tx=-99,Tn=99,Pm=1e9;for(let m=0;m<12;m++){Ta+=T[m];Pa+=P[m];Tx=Math.max(Tx,T[m]);Tn=Math.min(Tn,T[m]);Pm=Math.min(Pm,P[m])}const lon=cur.reg.L0+(i%cur.GW)/R,lat=cur.reg.T0-Math.floor(i/cur.GW)/R;return{Ta:Ta/12,Pa,Tx,Tn,Pmin:Pm,K:cur.KK[i],H:cur.HH[i],nile:cur.key==='africa'&&lon>30&&lon<33.8&&lat>14&&lat<31.6&&Math.abs(lon-(lat>24?31.2:32.5))<1.2}}
+function tectArr(){if(!cur.TECT&&TECT[cur.key]){const t=new Uint8Array(cur.ALL.length);for(let i=0;i<t.length;i++){if(!cur.FOC[i])continue;t[i]=TECT[cur.key](cur.reg.L0+(i%cur.GW)/R,cur.reg.T0-Math.floor(i/cur.GW)/R)}cur.TECT=t}return cur.TECT}
+function selMask(){if(!SEL||!cur)return null;const N=cur.ALL.length,m=new Uint8Array(N);
+  if(SEL.mine){const tt=MINE_RULE[SEL.kind][0];if(!tt)return null;const t=tectArr();if(!t)return null;for(let i=0;i<N;i++)m[i]=t[i]===tt?1:0;return m}
+  const f=CROP_RULE[SEL.kind][0];for(let i=0;i<N;i++){if(!cur.FOC[i])continue;m[i]=f(cellStats(i))?1:0}return m}
+function selectProduct(kind,isMine){if(SEL&&SEL.kind===kind&&SEL.mine===isMine){clearSel();return}
+  SEL={kind,mine:isMine};SEL.mask=selMask();
+  document.querySelectorAll('#ovlabels .pd').forEach(el=>{const on=el.dataset.kind===kind&&el.dataset.mine===String(isMine);el.classList.toggle('open',on);el.innerHTML=badgeInner(el.dataset.kind,el.dataset.mine==='true',18)+(on?'<span class="pdn">'+el.dataset.name+'</span>':'')});
+  const name=isMine?MN_KIND[kind][1]:AG_KIND[kind],text=isMine?MINE_RULE[kind][1]:CROP_RULE[kind][1];
+  const tt=isMine?MINE_RULE[kind][0]:0;
+  const note=SEL.mask?(isMine?`地図では「${TECT_NAME[tt][0]}」を光らせています。`:'地図では、このページの気温・降水量の計算から条件に合う場所を光らせています。'):'この鉱産物は地体構造だけでは決まらないので、地図は光らせていません。';
+  const box=document.getElementById('info');box.innerHTML=`<div class="ih"><span class="${badgeClass(kind,isMine)}" style="${badgeStyle(kind,isMine)}">${badgeInner(kind,isMine,22)}</span><b>${name}</b><button type="button" id="info-close">解除</button></div><p>${text}</p><p class="in">${note}</p>`;box.hidden=false;
+  document.getElementById('info-close').onclick=clearSel;recolor()}
+function clearSel(){SEL=null;document.getElementById('info').hidden=true;document.querySelectorAll('#ovlabels .pd.open').forEach(el=>{el.classList.remove('open');el.innerHTML=badgeInner(el.dataset.kind,el.dataset.mine==='true',18)});recolor()}
+
 function buildOverlays(){while(ovGroup.children.length){const o=ovGroup.children[0];ovGroup.remove(o);o.geometry&&o.geometry.dispose()}ovLabelsEl.innerHTML='';ovLabels=[];
   const list=document.getElementById('localwinds');list.innerHTML='';list.hidden=true;document.getElementById('productlegend').hidden=true;
   if(!cur)return;const reg=cur.reg,S=regS(reg),r=S*0.0035,xs=reg.xs||1;
@@ -702,7 +788,8 @@ function showRegion(key){key=ALIAS[key]||key;if(!REGIONS[key])key=DEFAULT_REGION
   setTimeout(()=>{try{
     while(group3.children.length)group3.remove(group3.children[0]);labelsEl.innerHTML='';pins=[];
     cur=compute(key);const reg=cur.reg;group3.add(cur.mesh);
-    const hasPd=PRODUCT_REGIONS.has(key);document.getElementById('ov-agri').hidden=!hasPd;document.getElementById('ov-mine').hidden=!hasPd;
+    const hasPd=PRODUCT_REGIONS.has(key);document.getElementById('ov-agri').hidden=!hasPd;document.getElementById('ov-mine').hidden=!hasPd;document.getElementById('m-tect').hidden=!hasPd;
+    SEL=null;document.getElementById('info').hidden=true;if(mode==='tect'&&!hasPd){mode='koppen';document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode==='koppen'))}
     reg.pins.forEach(p=>{const i=idx(p[1],p[2]),[x,z]=toXZ(reg,p[1],p[2]),y=Math.max(0,i<0?0:cur.HH[i])*reg.EX;
       const s=new THREE.Mesh(new THREE.SphereGeometry(0.45,14,10),new THREE.MeshBasicMaterial({color:0x2C2C2A}));s.position.set(x,y+0.9,z);s.visible=showPins;group3.add(s);
       const el=document.createElement('span');el.textContent=p[0];labelsEl.appendChild(el);pins.push([s.position,el,s])});
