@@ -10,12 +10,12 @@
 <style>
 /* Layout: one working column — region switch, view controls, the 3D relief, then legend and the tapped point's climograph */
 :root{
-  --bg:#F2F4F3;--panel:#FFFFFF;--fg:#1C2326;--muted:#5D6A6F;--line:#D3DAD9;--accent:#1F5F8B;--accent-soft:#DCE8F1;--sea:#2E6896;--warm:#B3202A;--cold:#1F4FB0;--localw:#6E1F96;
+  --bg:#F2F4F3;--panel:#FFFFFF;--fg:#1C2326;--muted:#5D6A6F;--line:#D3DAD9;--accent:#1F5F8B;--accent-soft:#DCE8F1;--sea:#2E6896;--warm:#B3202A;--cold:#1F4FB0;--localw:#6E1F96;--monsoon:#A35400;
   --font-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
   --font-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121719;--panel:#1A2124;--fg:#E4EAEA;--muted:#93A2A6;--line:#2E393D;--accent:#7FB3DA;--accent-soft:#1D3344;--sea:#244F72;--warm:#FF8A8F;--cold:#8FB4FF;--localw:#D9A6F2;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#121719;--panel:#1A2124;--fg:#E4EAEA;--muted:#93A2A6;--line:#2E393D;--accent:#7FB3DA;--accent-soft:#1D3344;--sea:#244F72;--warm:#FF8A8F;--cold:#8FB4FF;--localw:#D9A6F2;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121719;--panel:#1A2124;--fg:#E4EAEA;--muted:#93A2A6;--line:#2E393D;--accent:#7FB3DA;--accent-soft:#1D3344;--sea:#244F72;--warm:#FF8A8F;--cold:#8FB4FF;--localw:#D9A6F2;--monsoon:#FFB86B;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121719;--panel:#1A2124;--fg:#E4EAEA;--muted:#93A2A6;--line:#2E393D;--accent:#7FB3DA;--accent-soft:#1D3344;--sea:#244F72;--warm:#FF8A8F;--cold:#8FB4FF;--localw:#D9A6F2;--monsoon:#FFB86B;color-scheme:dark}
 [hidden]{display:none!important}
 body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6}
@@ -41,7 +41,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 #status{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;margin:0}
  #ovlabels{position:absolute;inset:0;pointer-events:none}
 #ovlabels span{position:absolute;transform:translate(-50%,-50%);font-size:11.5px;padding:0 5px;border-radius:4px;background:var(--panel);white-space:nowrap;border:1px solid currentColor}
-#ovlabels .warm{color:var(--warm)}#ovlabels .cold{color:var(--cold)}#ovlabels .local{color:var(--localw);font-weight:700}
+#ovlabels .warm{color:var(--warm)}#ovlabels .cold{color:var(--cold)}#ovlabels .local{color:var(--localw);font-weight:700}#ovlabels .monsoon{color:var(--monsoon)}
 .ovrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.ovrow .lab{font-size:13px;color:var(--muted)}
 .lw{margin:0;padding:10px 14px;list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
 .lw b{color:var(--localw);margin-right:8px}
@@ -78,6 +78,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="ovrow" role="group" aria-label="重ねて表示">
     <span class="lab">重ねて表示</span>
     <button class="chip" id="ov-winds" data-ov="winds" aria-pressed="false">恒常風</button>
+    <button class="chip" id="ov-monsoon" data-ov="monsoon" aria-pressed="false">季節風</button>
     <button class="chip" id="ov-currents" data-ov="currents" aria-pressed="false">海流</button>
     <button class="chip" id="ov-local" data-ov="local" aria-pressed="false">局地風</button>
   </div>
@@ -478,7 +479,7 @@ function drawLegend(){const L=document.getElementById('legend');let h='';
   else if(mode==='temp')h=[-5,5,15,25,35].map(t=>`<span><i style="background:rgb(${tempColor(t)})"></i>${t}℃</span>`).join('')+'<span>（'+(month+1)+'月の平均気温）</span>';
   else h=[0,25,100,200,400].map(p=>`<span><i style="background:rgb(${precColor(p)})"></i>${p}mm</span>`).join('')+'<span>（'+(month+1)+'月の降水量）</span>';
   h+=`<span><i style="background:rgb(${OTHER})"></i>対象地域の外</span><span><i style="background:rgb(${BORDER})"></i>地域の境界</span>`;
-  if(typeof OV!=='undefined'){if(OV.currents)h+='<span><i style="background:#D3303B"></i>暖流</span><span><i style="background:#1F5FD0"></i>寒流</span>';if(OV.winds)h+='<span><i style="background:#1E2A30"></i>恒常風（低緯度：貿易風／中緯度：偏西風／高緯度：極偏東風）</span>';if(OV.local)h+='<span><i style="background:#8A2BB8"></i>局地風</span>'}
+  if(typeof OV!=='undefined'){if(OV.currents)h+='<span><i style="background:#D3303B"></i>暖流</span><span><i style="background:#1F5FD0"></i>寒流</span>';if(OV.winds)h+='<span><i style="background:#1E2A30"></i>恒常風（低緯度：貿易風／中緯度：偏西風／高緯度：極偏東風）</span>';if(OV.local)h+='<span><i style="background:#8A2BB8"></i>局地風</span>';if(OV.monsoon)h+='<span><i style="background:#E07A00"></i>季節風（'+(month+1)+'月の向き。4月・10月ごろは切り替わりで弱い）</span>'}
   L.innerHTML=h}
 
 function token(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888'}
@@ -559,7 +560,7 @@ const LOCAL_WINDS=[
  ['ゾンダ',[-71,-32.4],[-68.6,-32.9],'アンデス山脈を越えて吹き下ろす、高温で乾いた風'],
  ['ブリックフィールダー',[136.5,-27],[144.5,-37],'オーストラリア内陸から南東部へ吹く、乾いた熱風']
 ];
-let OV={winds:false,currents:false,local:false};
+let OV={winds:false,monsoon:false,currents:false,local:false};
 const ovGroup=new THREE.Group();scene.add(ovGroup);let ovLabels=[];
 const ovLabelsEl=document.getElementById('ovlabels');
 function regS(reg){return Math.max((reg.L1-reg.L0)*(reg.xs||1),reg.T0-reg.T1)}
@@ -574,6 +575,22 @@ function densify(pl,step){const out=[];for(let k=0;k<pl.length-1;k++){const [x1,
 function windAt(lat,m){const sh=5*(-Math.cos(2*Math.PI*m/12)),L=lat-sh,a=Math.abs(L),ns=L>=0?1:-1;
   let u,v,z0,z1;if(a<30){u=-1;v=-0.55*ns;z0=0;z1=30}else if(a<60){u=1;v=0.5*ns;z0=30;z1=60}else{u=-1;v=-0.35*ns;z0=60;z1=90}
   const f=Math.pow(Math.sin(Math.PI*(a-z0)/(z1-z0)),0.6);return[u*f,v*f]}
+
+const MONSOON=[
+ [55,100,0,32,[1,0.8],[-1,-0.7]],
+ [95,125,-3,25,[0.8,0.8],[-0.8,-0.8]],
+ [100,152,-13,-2,[-1,0.6],[1,-0.6]],
+ [110,152,-20,-10,[-1,0.6],[1,-0.6]],
+ [105,146,22,50,[-0.6,1],[0.8,-1]],
+ [-20,15,3,18,[0.6,1],[-0.8,-0.8]],
+ [38,60,-5,12,[1,0.8],[-1,-0.8]],
+ [-115,-100,20,35,[-0.3,1],[0,0]]
+];
+const DIR8=['東','北東','北','北西','西','南西','南','南東'];
+function fromName(u,v){const ang=Math.atan2(-v,-u),k=((Math.round(ang/(Math.PI/4))%8)+8)%8;return DIR8[k]}
+function monsoonAt(lon,lat,m){const s=Math.cos(2*Math.PI*(m-7)/12),mag=Math.min(1,Math.abs(s)*1.25);let u=0,v=0,wt=0;
+  MONSOON.forEach(([a,b,c,d,su,wi])=>{const w=sig((lon-a)/1.5)*sig((b-lon)/1.5)*sig((lat-c)/1.5)*sig((d-lat)/1.5);if(w<0.02)return;const dv=s>0?su:wi;u+=w*dv[0];v+=w*dv[1];wt+=w});
+  if(wt<0.3)return[0,0];const n=Math.hypot(u,v)||1;const f=Math.min(1,wt)*mag;return[u/n*f,v/n*f]}
 function buildOverlays(){while(ovGroup.children.length){const o=ovGroup.children[0];ovGroup.remove(o);o.geometry&&o.geometry.dispose()}ovLabelsEl.innerHTML='';ovLabels=[];
   const list=document.getElementById('localwinds');list.innerHTML='';list.hidden=true;
   if(!cur)return;const reg=cur.reg,S=regS(reg),r=S*0.0035,xs=reg.xs||1;
@@ -582,6 +599,12 @@ function buildOverlays(){while(ovGroup.children.length){const o=ovGroup.children
       const len=step*0.38,dl=u/mag*len/xs*0.5,dt=v/mag*len*0.5,y=hAtLL(lon,lat)+S*0.012;
       const [x1,z1]=toXZ(reg,lon-dl,lat-dt),[x2,z2]=toXZ(reg,lon+dl,lat+dt);
       arrowTube([new THREE.Vector3(x1,y,z1),new THREE.Vector3((x1+x2)/2,y,(z1+z2)/2),new THREE.Vector3(x2,y,z2)],0x1E2A30,r*0.75*mag,0.8)}}
+  if(OV.monsoon){const step=Math.max(4,Math.round(S/11));const done=new Set();
+    for(let lat=reg.T0-step;lat>reg.T1;lat-=step)for(let lon=reg.L0+step/xs;lon<reg.L1;lon+=step/xs){const [u,v]=monsoonAt(lon,lat,month),mag=Math.hypot(u,v);if(mag<0.3)continue;
+      const len=step*0.45,dl=u/mag*len/xs*0.5,dt=v/mag*len*0.5,y=hAtLL(lon,lat)+S*0.02;
+      const [x1,z1]=toXZ(reg,lon-dl,lat-dt),[x2,z2]=toXZ(reg,lon+dl,lat+dt);
+      arrowTube([new THREE.Vector3(x1,y,z1),new THREE.Vector3((x1+x2)/2,y,(z1+z2)/2),new THREE.Vector3(x2,y,z2)],0xE07A00,r*1.0*mag,0.95);
+      const nm=fromName(u,v)+'の季節風',key=nm;if(!done.has(key)&&mag>0.6){done.add(key);addLabel(nm,new THREE.Vector3((x1+x2)/2,y+S*0.012,(z1+z2)/2),'ov monsoon')}}}
   if(OV.currents){const seen=new Set();CURRENTS.forEach(([name,warm,pl])=>{const d=densify(pl,0.5);let run=[];const runs=[];
       d.forEach(p=>{if(inReg(reg,p[0],p[1],0)){run.push(p)}else{if(run.length>2)runs.push(run);run=[]}});if(run.length>2)runs.push(run);
       runs.forEach(rn=>{const pts=rn.map(([lo,la])=>{const [x,z]=toXZ(reg,lo,la);return new THREE.Vector3(x,0.08,z)});arrowTube(pts,warm?0xD3303B:0x1F5FD0,r*1.1,0.95);
@@ -614,7 +637,7 @@ document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.data
 const pinBtn=document.getElementById('pins-toggle');pinBtn.onclick=()=>{showPins=!showPins;pinBtn.setAttribute('aria-pressed',!showPins);pinBtn.textContent=showPins?'都市名を隠す':'都市名を表示';pins.forEach(p=>p[2].visible=showPins)};
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode===m));recolor()}
 const slider=document.getElementById('month'),out=document.getElementById('month-out'),play=document.getElementById('play');
-function setMonth(m){month=m;slider.value=m+1;out.textContent=(m+1)+'月';if(mode==='temp'||mode==='prec')recolor();if(OV.winds)buildOverlays()}
+function setMonth(m){month=m;slider.value=m+1;out.textContent=(m+1)+'月';if(mode==='temp'||mode==='prec')recolor();if(OV.winds||OV.monsoon)buildOverlays()}
 slider.oninput=()=>setMonth(+slider.value-1);
 play.onclick=()=>{if(timer){clearInterval(timer);timer=null;play.textContent='▶';play.setAttribute('aria-label','月を再生')}else{if(mode!=='temp'&&mode!=='prec')setMode('prec');timer=setInterval(()=>setMonth((month+1)%12),700);play.textContent='❚❚';play.setAttribute('aria-label','一時停止')}};
 
