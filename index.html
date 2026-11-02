@@ -66,6 +66,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="chip" id="m-koppen" data-mode="koppen" aria-pressed="true">気候区分</button>
     <button class="chip" id="m-temp" data-mode="temp" aria-pressed="false">気温</button>
     <button class="chip" id="m-prec" data-mode="prec" aria-pressed="false">降水量</button>
+    <span style="flex:1"></span>
+    <button class="chip" id="pins-toggle" aria-pressed="false">都市名を隠す</button>
   </div>
   <div class="month">
     <button class="play" id="play" aria-label="月を再生">▶</button>
@@ -384,11 +386,11 @@ function kop(T,P,lat){const Ta=T.reduce((a,b)=>a+b)/12,Pa=P.reduce((a,b)=>a+b),T
   if(Tn<=-3){const c2=Tn<-38?'d':Tx>=22?'a':T.filter(t=>t>=10).length>=4?'b':'c';return 'D'+b+c2}
   const c=Tx>=22?'a':T.filter(t=>t>=10).length>=4?'b':'c';return 'C'+b+c}
 
-const GROUPS=[['Af','熱帯雨林気候','#C9535C'],['Am','弱い乾季のある熱帯雨林気候','#E09A4F'],['Aw','サバナ気候','#E8D4E3'],['BW','砂漠気候','#E3CF2B'],['BS','ステップ気候','#EFE7B3'],['Cfa','温暖湿潤気候','#A8BE68'],['Cfb','西岸海洋性気候','#A6CBD0'],['Cs','地中海性気候','#D2B069'],['Cw','温暖冬季少雨気候','#D7D36B'],['Df','亜寒帯（冷帯）湿潤気候','#D8C7DE'],['Dw','亜寒帯（冷帯）冬季少雨気候','#A6A0CB'],['ET','ツンドラ気候','#D8E6EC'],['EF','氷雪気候','#6EA2D3']];
+const GROUPS=[['Af','熱帯雨林気候','#D3303B'],['Am','弱い乾季のある熱帯雨林気候','#F08A1C'],['Aw','サバナ気候','#F49AC1'],['BW','砂漠気候','#FFE014'],['BS','ステップ気候','#EBCB86'],['Cfa','温暖湿潤気候','#7DB83A'],['Cfb','西岸海洋性気候','#3FA7BF'],['Cs','地中海性気候','#B97F35'],['Cw','温暖冬季少雨気候','#C2C72A'],['Df','亜寒帯（冷帯）湿潤気候','#B48ADB'],['Dw','亜寒帯（冷帯）冬季少雨気候','#6A55BF'],['ET','ツンドラ気候','#BFE3EE'],['EF','氷雪気候','#2F6FC4']];
 const GMAP=Object.fromEntries(GROUPS.map(x=>[x[0],x]));
 function group(k){if(k[0]==='D')return k[1]==='w'?'Dw':'Df';if(k==='Af'||k==='Am'||k==='Aw'||k==='Cfa'||k==='ET'||k==='EF'||k==='Df'||k==='Dw')return k;if(k[0]==='B')return k.slice(0,2);if(k==='Cfb'||k==='Cfc')return 'Cfb';return k.slice(0,2)}
 
-const R=4,SEA=[46,104,150],OTHER=[196,194,186];
+const R=4,SEA=[46,104,150],OTHER=[150,148,142],BORDER=[34,34,38];
 const relief=[[0,[79,138,60]],[200,[90,145,64]],[800,[169,180,94]],[1800,[196,154,98]],[3200,[125,92,64]],[4400,[238,238,234]]];
 function reliefColor(h){for(let i=1;i<relief.length;i++){if(h<relief[i][0]){const a=relief[i-1],b=relief[i],k=Math.max(0,(h-a[0])/(b[0]-a[0]));return a[1].map((v,j)=>v+(b[1][j]-v)*k)}}return relief[relief.length-1][1]}
 function rgb(s){const c=d3.color(s);return[c.r,c.g,c.b]}
@@ -414,7 +416,7 @@ const ctl=new THREE.OrbitControls(cam,ren.domElement);ctl.enableDamping=true;ctl
 scene.add(new THREE.AmbientLight(0xffffff,0.6));const sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(-30,40,20);scene.add(sun);
 const group3=new THREE.Group();scene.add(group3);
 
-let world=null,cur=null,mode='koppen',month=0,timer=null,pins=[],marker=null,selected=null;
+let world=null,cur=null,mode='koppen',month=0,timer=null,pins=[],marker=null,selected=null,showPins=true;
 const cache={};
 
 function mask(ctx,proj,feature,GW,GH){ctx.clearRect(0,0,GW,GH);ctx.fillStyle='#000';ctx.beginPath();d3.geoPath(proj,ctx)(feature);ctx.fill();
@@ -428,18 +430,20 @@ function compute(key){if(cache[key])return cache[key];const reg=REGIONS[key],GW=
   const proj=d3.geoEquirectangular().scale(R*180/Math.PI).translate([-reg.L0*R,reg.T0*R]);
   let FOC=mask(ctx,proj,reg.focus?topojson.merge(world,world.objects.countries.geometries.filter(reg.focus)):topojson.feature(world,world.objects.land),GW,GH);
   const o=build(reg,ALLP,FOC,GW,GH,PAD),ALL=o.ALL;for(let i=0;i<FOC.length;i++)FOC[i]=FOC[i]&&ALL[i]?1:0;
+  const EDGE=new Uint8Array(FOC.length);for(let r=0;r<GH;r++)for(let c=0;c<GW;c++){const i=r*GW+c;if(!FOC[i])continue;
+    for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>=GH||cc>=GW)continue;const j=rr*GW+cc;if(ALL[j]&&!FOC[j]){EDGE[i]=1;break}}}
   const geo=new THREE.PlaneGeometry((reg.L1-reg.L0)*(reg.xs||1),reg.T0-reg.T1,GW-1,GH-1);geo.rotateX(-Math.PI/2);
   const pos=geo.attributes.position;for(let i=0;i<pos.count;i++)pos.setY(i,o.HH[i]*reg.EX);
   geo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(pos.count*3),3));geo.computeVertexNormals();
   const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));
   const used=new Set();for(let i=0;i<FOC.length;i++)if(FOC[i])used.add(group(o.KK[i]));
-  return cache[key]={key,reg,GW,GH,ALL,FOC,...o,geo,mesh,used}}
+  return cache[key]={key,reg,GW,GH,ALL,FOC,EDGE,...o,geo,mesh,used}}
 
 function toXZ(reg,lon,lat){return[(lon-(reg.L0+reg.L1)/2)*(reg.xs||1),(reg.T0+reg.T1)/2-lat]}
 function idx(lon,lat){const c=Math.round((lon-cur.reg.L0)*R),r=Math.round((cur.reg.T0-lat)*R);if(c<0||r<0||c>=cur.GW||r>=cur.GH)return -1;return r*cur.GW+c}
 
 function recolor(){if(!cur)return;const col=cur.geo.attributes.color.array,N=cur.ALL.length;
-  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
+  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(cur.EDGE[i])k=BORDER;else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
     col[i*3]=k[0]/255;col[i*3+1]=k[1]/255;col[i*3+2]=k[2]/255}
   cur.geo.attributes.color.needsUpdate=true;drawLegend()}
 
@@ -448,13 +452,14 @@ function drawLegend(){const L=document.getElementById('legend');let h='';
   else if(mode==='terrain')h=[['低地',0],['〜800m',500],['〜1800m',1300],['〜3200m',2500],['4000m〜',4300]].map(a=>`<span><i style="background:rgb(${reliefColor(a[1]).map(Math.round)})"></i>${a[0]}</span>`).join('');
   else if(mode==='temp')h=[-5,5,15,25,35].map(t=>`<span><i style="background:rgb(${tempColor(t)})"></i>${t}℃</span>`).join('')+'<span>（'+(month+1)+'月の平均気温）</span>';
   else h=[0,25,100,200,400].map(p=>`<span><i style="background:rgb(${precColor(p)})"></i>${p}mm</span>`).join('')+'<span>（'+(month+1)+'月の降水量）</span>';
+  h+=`<span><i style="background:rgb(${OTHER})"></i>対象地域の外</span><span><i style="background:rgb(${BORDER})"></i>地域の境界</span>`;
   L.innerHTML=h}
 
 function token(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888'}
 function probe(lon,lat){if(!cur)return;const i=idx(lon,lat);if(i<0)return;
   const t=document.getElementById('p-title'),m=document.getElementById('p-meta');
   if(!cur.ALL[i]){t.textContent='海の上です';m.textContent='陸地をタップしてください';return}
-  if(!cur.FOC[i]){t.textContent='計算対象の外です';m.textContent='この大陸以外の陸地は灰色で表示しています';return}
+  if(!cur.FOC[i]){t.textContent='計算対象の外です';m.textContent='対象地域の外の国は灰色で表示しています';return}
   selected=[lon,lat];
   const T=Array.from(cur.TT.slice(i*12,i*12+12)),P=Array.from(cur.PP.slice(i*12,i*12+12)),k=cur.KK[i],gr=GMAP[group(k)];
   const [x,z]=toXZ(cur.reg,lon,lat);marker.position.set(x,Math.max(0,cur.HH[i])*cur.reg.EX+1.3,z);marker.visible=true;
@@ -481,8 +486,8 @@ function showRegion(key){key=ALIAS[key]||key;if(!REGIONS[key])key=DEFAULT_REGION
     while(group3.children.length)group3.remove(group3.children[0]);labelsEl.innerHTML='';pins=[];
     cur=compute(key);const reg=cur.reg;group3.add(cur.mesh);
     reg.pins.forEach(p=>{const i=idx(p[1],p[2]),[x,z]=toXZ(reg,p[1],p[2]),y=Math.max(0,i<0?0:cur.HH[i])*reg.EX;
-      const s=new THREE.Mesh(new THREE.SphereGeometry(0.45,14,10),new THREE.MeshBasicMaterial({color:0x2C2C2A}));s.position.set(x,y+0.9,z);group3.add(s);
-      const el=document.createElement('span');el.textContent=p[0];labelsEl.appendChild(el);pins.push([s.position,el])});
+      const s=new THREE.Mesh(new THREE.SphereGeometry(0.45,14,10),new THREE.MeshBasicMaterial({color:0x2C2C2A}));s.position.set(x,y+0.9,z);s.visible=showPins;group3.add(s);
+      const el=document.createElement('span');el.textContent=p[0];labelsEl.appendChild(el);pins.push([s.position,el,s])});
     marker=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.5,12),new THREE.MeshBasicMaterial({color:0xD85A30}));marker.rotation.x=Math.PI;marker.visible=false;group3.add(marker);
     if(reg.cam){cam.position.set(...reg.cam);ctl.target.set(...reg.target)}else{const S=Math.max((reg.L1-reg.L0)*(reg.xs||1)*0.75,reg.T0-reg.T1);cam.position.set(0,0.95*S,1.05*S);ctl.target.set(0,0,S*0.03)}ctl.update();
     recolor();probe(...reg.start);statusEl.hidden=true}catch(e){statusEl.textContent='計算に失敗しました：'+e.message}},30)}
@@ -491,6 +496,7 @@ const regionsEl=document.getElementById('regions');REGION_LIST.forEach(([k,label
 document.querySelectorAll('[data-region]').forEach(b=>b.onclick=()=>{if(location.hash!=='#'+b.dataset.region)location.hash=b.dataset.region;else showRegion(b.dataset.region)});
 window.addEventListener('hashchange',()=>showRegion(location.hash.slice(1)));
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+const pinBtn=document.getElementById('pins-toggle');pinBtn.onclick=()=>{showPins=!showPins;pinBtn.setAttribute('aria-pressed',!showPins);pinBtn.textContent=showPins?'都市名を隠す':'都市名を表示';pins.forEach(p=>p[2].visible=showPins)};
 function setMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode===m));recolor()}
 const slider=document.getElementById('month'),out=document.getElementById('month-out'),play=document.getElementById('play');
 function setMonth(m){month=m;slider.value=m+1;out.textContent=(m+1)+'月';if(mode==='temp'||mode==='prec')recolor()}
@@ -505,7 +511,7 @@ ren.domElement.addEventListener('pointerup',e=>{if(!down||!cur)return;if(Math.hy
 
 const v=new THREE.Vector3();
 function loop(){requestAnimationFrame(loop);ctl.update();ren.render(scene,cam);
-  pins.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=v.z>=1})}
+  pins.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=!showPins||v.z>=1})}
 loop();
 new ResizeObserver(()=>{W=stage.clientWidth;H=stage.clientHeight;ren.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix()}).observe(stage);
 const mq=window.matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',()=>{if(cur&&selected)probe(...selected)});
