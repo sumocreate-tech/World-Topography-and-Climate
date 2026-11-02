@@ -40,15 +40,21 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 #labels span{position:absolute;transform:translate(-50%,-150%);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:0 6px;white-space:nowrap}
 #status{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;margin:0}
  #ovlabels{position:absolute;inset:0;pointer-events:none}
-#ovlabels span{position:absolute;transform:translate(-50%,-50%);font-size:11.5px;padding:0 5px;border-radius:4px;background:var(--panel);white-space:nowrap;border:1px solid currentColor}
+#ovlabels>span{position:absolute;transform:translate(-50%,-50%);font-size:11.5px;padding:0 5px;border-radius:4px;background:var(--panel);white-space:nowrap;border:1px solid currentColor;z-index:2}
 #ovlabels .warm{color:var(--warm)}#ovlabels .cold{color:var(--cold)}#ovlabels .local{color:var(--localw);font-weight:700}#ovlabels .monsoon{color:var(--monsoon)}
 .ovrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.ovrow .lab{font-size:13px;color:var(--muted)}
 .lw{margin:0;padding:10px 14px;list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
 .lw b{color:var(--localw);margin-right:8px}
+.pd{z-index:1;position:absolute;transform:translate(-50%,-50%);font:700 11px var(--font-body);min-width:22px;height:22px;padding:0 4px;border-radius:11px;border:1px solid rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;cursor:pointer;line-height:1;pointer-events:auto}
+.pd.icon{background:#FFFDF6;padding:0 2px;height:26px;min-width:26px;border-radius:13px;gap:4px}.pd.icon svg{display:block}.pd .pdn{font:700 12px var(--font-body);color:#2a2a2a}.pd.mine .pdn{color:#fff}.pd.mine.icon .pdn{color:#2a2a2a}
+.pd.mine{color:#fff;border-radius:4px;gap:4px}.pd.mine.icon{border-radius:13px}
+.pd.open{font-size:12px;z-index:4;padding:0 6px}.pd .pdn{position:static;transform:none;border:0;background:none;padding:0}
+.pdlegend .pd{position:static;transform:none;margin-right:6px;cursor:default;pointer-events:none}
+.pdlegend .pdl{display:inline-flex;align-items:center}
 .hint{position:absolute;left:8px;bottom:8px;margin:0;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 6px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{width:20px;height:12px;border:1px solid rgba(0,0,0,.35);display:inline-block}
+.legend i{width:20px;height:12px;border:1px solid var(--muted);display:inline-block}
 .legend b{font:500 13px var(--font-data)}
 .probe{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .probe h2{font-size:16px;margin:0;font-weight:700}
@@ -81,6 +87,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="chip" id="ov-monsoon" data-ov="monsoon" aria-pressed="false">季節風</button>
     <button class="chip" id="ov-currents" data-ov="currents" aria-pressed="false">海流</button>
     <button class="chip" id="ov-local" data-ov="local" aria-pressed="false">局地風</button>
+    <button class="chip" id="ov-agri" data-ov="agri" aria-pressed="false">農作物</button>
+    <button class="chip" id="ov-mine" data-ov="mine" aria-pressed="false">鉱産物</button>
   </div>
   <div class="month">
     <button class="play" id="play" aria-label="月を再生">▶</button>
@@ -95,6 +103,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   </div>
   <div class="legend" id="legend"></div>
   <ul class="lw" id="localwinds" hidden></ul>
+  <div class="legend pdlegend" id="productlegend" hidden></div>
   <section class="probe" aria-live="polite">
     <h2 id="p-title">地点を選んでください</h2>
     <p class="meta" id="p-meta">地図上の陸地をタップすると、その地点の雨温図が出ます</p>
@@ -491,7 +500,7 @@ function probe(lon,lat){if(!cur)return;let i=idx(lon,lat);if(i<0)return;
   selected=[lon,lat];
   const T=Array.from(cur.TT.slice(i*12,i*12+12)),P=Array.from(cur.PP.slice(i*12,i*12+12)),k=cur.KK[i],gr=GMAP[group(k)];
   const [x,z]=toXZ(cur.reg,lon,lat);marker.position.set(x,Math.max(0,cur.HH[i])*cur.reg.EX+1.3,z);marker.visible=true;
-  t.innerHTML=`<span style="display:inline-block;width:14px;height:14px;border:1px solid rgba(0,0,0,.35);vertical-align:-2px;margin-right:6px;background:${gr[2]}"></span>${gr[1]}<span style="font:500 13px var(--font-data);color:var(--muted);margin-left:8px">${k}</span>`;
+  t.innerHTML=`<span style="display:inline-block;width:14px;height:14px;border:1px solid var(--muted);vertical-align:-2px;margin-right:6px;background:${gr[2]}"></span>${gr[1]}<span style="font:500 13px var(--font-data);color:var(--muted);margin-left:8px">${k}</span>`;
   const Ta=T.reduce((a,b)=>a+b)/12,Pa=P.reduce((a,b)=>a+b);
   m.textContent=`${Math.abs(lat).toFixed(1)}°${lat<0?'S':'N'} ${Math.abs(lon).toFixed(1)}°${lon<0?'W':'E'} ／ 標高 ${Math.round(Math.max(0,cur.HH[i]))}m ／ 年平均 ${Ta.toFixed(1)}℃ ／ 年降水量 ${Math.round(Pa)}mm`;
   drawChart(T,P)}
@@ -560,7 +569,7 @@ const LOCAL_WINDS=[
  ['ゾンダ',[-71,-32.4],[-68.6,-32.9],'アンデス山脈を越えて吹き下ろす、高温で乾いた風'],
  ['ブリックフィールダー',[136.5,-27],[144.5,-37],'オーストラリア内陸から南東部へ吹く、乾いた熱風']
 ];
-let OV={winds:false,monsoon:false,currents:false,local:false};
+let OV={winds:false,monsoon:false,currents:false,local:false,agri:false,mine:false};
 const ovGroup=new THREE.Group();scene.add(ovGroup);let ovLabels=[];
 const ovLabelsEl=document.getElementById('ovlabels');
 function regS(reg){return Math.max((reg.L1-reg.L0)*(reg.xs||1),reg.T0-reg.T1)}
@@ -591,8 +600,77 @@ function fromName(u,v){const ang=Math.atan2(-v,-u),k=((Math.round(ang/(Math.PI/4
 function monsoonAt(lon,lat,m){const s=Math.cos(2*Math.PI*(m-7)/12),mag=Math.min(1,Math.abs(s)*1.25);let u=0,v=0,wt=0;
   MONSOON.forEach(([a,b,c,d,su,wi])=>{const w=sig((lon-a)/1.5)*sig((b-lon)/1.5)*sig((lat-c)/1.5)*sig((d-lat)/1.5);if(w<0.02)return;const dv=s>0?su:wi;u+=w*dv[0];v+=w*dv[1];wt+=w});
   if(wt<0.3)return[0,0];const n=Math.hypot(u,v)||1;const f=Math.min(1,wt)*mag;return[u/n*f,v/n*f]}
+
+const ICON={
+wheat:'<path d="M12 22V9" stroke="#8A6A1F" stroke-width="1.6" fill="none"/><g fill="#D9A62E" stroke="#8A6A1F" stroke-width=".5"><ellipse cx="12" cy="4" rx="1.6" ry="2.6"/><ellipse cx="9.6" cy="7.4" rx="1.4" ry="2.4" transform="rotate(-35 9.6 7.4)"/><ellipse cx="14.4" cy="7.4" rx="1.4" ry="2.4" transform="rotate(35 14.4 7.4)"/><ellipse cx="9.6" cy="11.4" rx="1.4" ry="2.4" transform="rotate(-35 9.6 11.4)"/><ellipse cx="14.4" cy="11.4" rx="1.4" ry="2.4" transform="rotate(35 14.4 11.4)"/><ellipse cx="9.8" cy="15.2" rx="1.3" ry="2.2" transform="rotate(-35 9.8 15.2)"/><ellipse cx="14.2" cy="15.2" rx="1.3" ry="2.2" transform="rotate(35 14.2 15.2)"/></g>',
+corn:'<path d="M12 3c3 0 4.2 4 4.2 9s-1.5 8-4.2 8-4.2-3-4.2-8S9 3 12 3z" fill="#F2C230" stroke="#B88A10" stroke-width=".6"/><g stroke="#C99A16" stroke-width=".5"><path d="M9 8h6M8.4 11h7.2M8.4 14h7.2M9 17h6M12 4v15"/></g><path d="M12 21c-4-1-7-5-6.5-11 1.5 3 3.5 6 6.5 7.5zM12 21c4-1 7-5 6.5-11-1.5 3-3.5 6-6.5 7.5z" fill="#5FA03A" stroke="#3E7424" stroke-width=".5"/>',
+potato:'<path d="M5 13c0-4.5 3.5-7.5 8-7 4.5.4 6.5 3.8 6 7.5-.5 4-4 6-8 5.5S5 16.5 5 13z" fill="#C79A5B" stroke="#8C6633" stroke-width=".8"/><g fill="#8C6633"><circle cx="9.5" cy="11" r=".8"/><circle cx="14" cy="9.5" r=".7"/><circle cx="15.5" cy="14" r=".8"/><circle cx="11" cy="15.5" r=".7"/></g>',
+beet:'<path d="M12 9c3.2 0 4.6 2.2 4 5.2-.6 3-2.6 6.2-4 8-1.4-1.8-3.4-5-4-8C7.4 11.2 8.8 9 12 9z" fill="#F4EAD2" stroke="#A8936A" stroke-width=".7"/><path d="M12 9.5C10 6 7.5 4.5 5.5 5c1 2 3 4 6 4.5zM12 9.5c2-3.5 4.5-5 6.5-4.5-1 2-3 4-6 4.5zM12 9.5c0-3 .3-5.5 0-7.5-1 1.8-1.2 4.5 0 7.5z" fill="#4E9A35" stroke="#2F6B1E" stroke-width=".5"/>',
+grape:'<path d="M12 4c1.5-1.5 4-2 6-1-1 2-3.5 3-6 2z" fill="#4E9A35"/><path d="M12 5v2.5" stroke="#6B4A2A" stroke-width="1.2"/><g fill="#7B3FA0" stroke="#4E2468" stroke-width=".5"><circle cx="8.5" cy="9.5" r="2.2"/><circle cx="12" cy="9.5" r="2.2"/><circle cx="15.5" cy="9.5" r="2.2"/><circle cx="10.2" cy="13.2" r="2.2"/><circle cx="13.8" cy="13.2" r="2.2"/><circle cx="12" cy="16.8" r="2.2"/><circle cx="12" cy="20.2" r="1.8"/></g>',
+olive:'<path d="M3 20C8 15 14 10 21 4" stroke="#6B5A2A" stroke-width="1.2" fill="none"/><g fill="#7C9A3A" stroke="#4F6A1E" stroke-width=".4"><path d="M8 15c-3-1-5 0-6 1 2 1 4 1 6-1z"/><path d="M14 9.5c0-3 1.5-5 3-5.5 0 2-1 4-3 5.5z"/><path d="M17 7c3 .5 4.5 2 5 3-2 0-4-.5-5-3z"/></g><ellipse cx="10.5" cy="15.5" rx="2.2" ry="3" fill="#4A5A20" transform="rotate(30 10.5 15.5)"/><ellipse cx="15" cy="12.5" rx="2" ry="2.8" fill="#6E8A2A" transform="rotate(30 15 12.5)"/>',
+citrus:'<circle cx="12" cy="13.5" r="7.5" fill="#F39A1E" stroke="#C46F0A" stroke-width=".7"/><circle cx="12" cy="13.5" r="5.2" fill="#FBBF4A"/><g stroke="#F39A1E" stroke-width=".8"><path d="M12 8.3v10.4M6.8 13.5h10.4M8.3 9.8l7.4 7.4M15.7 9.8l-7.4 7.4"/></g><path d="M12 6c1-2.5 3.5-3.5 5.5-3-1 2.2-3 3.3-5.5 3z" fill="#4E9A35"/>',
+sunflower:'<g fill="#F6C31C" stroke="#C99510" stroke-width=".4"><ellipse cx="12" cy="4.3" rx="2" ry="3"/><ellipse cx="12" cy="19.7" rx="2" ry="3"/><ellipse cx="4.3" cy="12" rx="3" ry="2"/><ellipse cx="19.7" cy="12" rx="3" ry="2"/><ellipse cx="6.6" cy="6.6" rx="2" ry="3" transform="rotate(-45 6.6 6.6)"/><ellipse cx="17.4" cy="17.4" rx="2" ry="3" transform="rotate(-45 17.4 17.4)"/><ellipse cx="17.4" cy="6.6" rx="2" ry="3" transform="rotate(45 17.4 6.6)"/><ellipse cx="6.6" cy="17.4" rx="2" ry="3" transform="rotate(45 6.6 17.4)"/></g><circle cx="12" cy="12" r="4.3" fill="#6B3E1A"/><g fill="#3E2410"><circle cx="11" cy="11" r=".6"/><circle cx="13" cy="11.5" r=".6"/><circle cx="12" cy="13.2" r=".6"/></g>',
+coffee:'<path d="M3 6c5 1 10 4 18 12" stroke="#6B4A2A" stroke-width="1.2" fill="none"/><path d="M6 5c-1-2.5 1-4 3-3.5 0 2-1 3.2-3 3.5zM16 11c2.5-1 4.5 0 5 1.5-2 .8-4 .5-5-1.5z" fill="#3E8A30"/><g stroke="#7A1010" stroke-width=".5"><ellipse cx="9" cy="10.5" rx="2.4" ry="2.9" fill="#C8222A"/><ellipse cx="13.3" cy="12.8" rx="2.4" ry="2.9" fill="#D9363E"/><ellipse cx="11" cy="16" rx="2.3" ry="2.7" fill="#A8161D"/></g>',
+cacao:'<path d="M12 2.5c4 1.5 6 5.5 6 9.5s-2.5 8.5-6 9.5c-3.5-1-6-5.5-6-9.5s2-8 6-9.5z" fill="#C4782A" stroke="#7E4512" stroke-width=".7"/><g stroke="#8E5218" stroke-width=".8" fill="none"><path d="M12 3v18"/><path d="M9 4.5C8 8 8 15 9 19.5"/><path d="M15 4.5c1 3.5 1 10.5 0 15"/></g><path d="M12 2.5V1" stroke="#5E8A2A" stroke-width="1.5"/>',
+palm:'<path d="M12 21v-4" stroke="#6B4A2A" stroke-width="1.5"/><g stroke="#7A1E0A" stroke-width=".35"><circle cx="12" cy="9" r="2" fill="#E2531B"/><circle cx="8.6" cy="10.5" r="2" fill="#C8401A"/><circle cx="15.4" cy="10.5" r="2" fill="#D24A1A"/><circle cx="10.2" cy="13.6" r="2" fill="#E8641F"/><circle cx="13.8" cy="13.6" r="2" fill="#B8361A"/><circle cx="12" cy="16.5" r="2" fill="#D9561C"/><circle cx="10.5" cy="6.2" r="1.8" fill="#2B1A12"/><circle cx="13.6" cy="6.4" r="1.8" fill="#C8401A"/></g>',
+peanut:'<path d="M9 3.5c3 0 4.5 2.5 4 5-.3 1.6.4 2.7 1.8 3.7 2.4 1.7 3.2 4.6 1.6 6.8-1.6 2.3-5 2.6-7 .6-1.2-1.2-1.4-2.6-1-4 .4-1.4-.2-2.6-1.4-3.5C4.2 10.3 4 7 5.8 5.2 6.6 4.1 7.7 3.5 9 3.5z" fill="#DDB27A" stroke="#9C7140" stroke-width=".7"/><g stroke="#B88B52" stroke-width=".5" fill="none"><path d="M6.5 6.5l4 4M8 5l3 3M12.5 14l3.5 3.5M11.5 16l3 3"/></g>',
+tea:'<path d="M12 22v-8" stroke="#3E6B24" stroke-width="1.3"/><path d="M12 14C6 13 3.5 8.5 4 4c4.5.5 8 4 8 10z" fill="#4E9A35" stroke="#2F6B1E" stroke-width=".6"/><path d="M12 14c6-1 8.5-5.5 8-10-4.5.5-8 4-8 10z" fill="#62B048" stroke="#2F6B1E" stroke-width=".6"/><path d="M12 13.5c-1-3-.6-6.5 0-9.5.6 3 1 6.5 0 9.5z" fill="#8FCB6A"/><path d="M7 7l5 6.5M17 7l-5 6.5" stroke="#2F6B1E" stroke-width=".4"/>',
+cotton:'<path d="M4 17c2.5 3 5 4 8 4s5.5-1 8-4c-2.5 1-5.5 1.5-8 1.5S6.5 18 4 17z" fill="#7A5230"/><g fill="#FFFFFF" stroke="#B9B2A6" stroke-width=".7"><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/><circle cx="12" cy="8.5" r="4.3"/><circle cx="12" cy="14.5" r="4"/></g>',
+date:'<path d="M12 22c-.5-5 0-9 .3-12" stroke="#8A5A2A" stroke-width="1.8" fill="none"/><g fill="#3E8A30"><path d="M12.3 10C9 6 5 6 2.5 8 6 7.5 9 8.5 12.3 10z"/><path d="M12.3 10c3.3-4 7.3-4 9.7-2-3.5-.5-6.5.5-9.7 2z"/><path d="M12.3 10C11 5.5 8 3 5 3c3 1.5 5.5 4 7.3 7z"/><path d="M12.3 10c1.3-4.5 4.3-7 7.3-7-3 1.5-5.5 4-7.3 7z"/></g><g fill="#B5651D"><circle cx="10.2" cy="12" r="1.1"/><circle cx="11.6" cy="13.2" r="1.1"/><circle cx="14" cy="12.2" r="1.1"/><circle cx="13" cy="13.6" r="1.1"/></g>',
+cane:'<g stroke="#2F6B1E" stroke-width=".5"><rect x="6" y="5" width="3" height="17" rx="1.2" fill="#7DB84A"/><rect x="10.5" y="3" width="3" height="19" rx="1.2" fill="#93C858"/><rect x="15" y="6" width="3" height="16" rx="1.2" fill="#7DB84A"/></g><g stroke="#2F6B1E" stroke-width=".9"><path d="M6 10h3M6 15h3M10.5 8h3M10.5 13h3M10.5 18h3M15 11h3M15 16h3"/></g><path d="M12 3C10 1 7 1 5 2.5M12 3c2-2 5-2 7 0" stroke="#3E8A30" stroke-width="1.1" fill="none"/>',
+vanilla:'<g stroke="#2A160A" stroke-width=".5"><path d="M5 21C7 14 9 8 12.5 3" stroke="#4A2A12" stroke-width="2.2" fill="none"/><path d="M9 21.5C11 15 13 9 16.5 4" stroke="#5A3418" stroke-width="2.2" fill="none"/><path d="M13 21.8C15 16 17 10 20 5.5" stroke="#3E220E" stroke-width="2.2" fill="none"/></g><path d="M12.5 3c1-1.5 2.5-2 3.5-1.5" stroke="#4E9A35" stroke-width="1" fill="none"/>',
+dairy:'<path d="M5.5 8C3 7 2 8.5 2.5 9.5 3.5 11 5 10 6 9.5zM18.5 8c2.5-1 3.5.5 3 1.5-1 1.5-2.5.5-3.5 0z" fill="#E8E2D6" stroke="#6B6358" stroke-width=".5"/><path d="M7 5.5c3-2 7-2 10 0 1.5 3 1.5 7 0 10.5-1 2.5-3 4-5 4s-4-1.5-5-4C5.5 12.5 5.5 8.5 7 5.5z" fill="#FFFFFF" stroke="#6B6358" stroke-width=".7"/><path d="M7 5.5c1.5-1 3-1.4 4-1.3-.5 2-2.5 3.5-4.6 3.8z" fill="#2A2A2A"/><path d="M14.5 9c1.5 0 2.5 1 2.5 2.5-1.5.3-3-.6-2.5-2.5z" fill="#2A2A2A"/><ellipse cx="12" cy="16.5" rx="3.6" ry="2.6" fill="#F2B8B0" stroke="#B87A72" stroke-width=".5"/><circle cx="10.6" cy="16.6" r=".6" fill="#7A4A44"/><circle cx="13.4" cy="16.6" r=".6" fill="#7A4A44"/><circle cx="9.3" cy="10.5" r=".9" fill="#222"/><circle cx="14.7" cy="10.5" r=".9" fill="#222"/>',
+sheep:'<g fill="#FFFFFF" stroke="#9C968C" stroke-width=".6"><circle cx="9" cy="10" r="3.4"/><circle cx="13.5" cy="9" r="3.4"/><circle cx="16.5" cy="12" r="3"/><circle cx="12" cy="13.5" r="3.6"/><circle cx="7.5" cy="13.5" r="3"/></g><g stroke="#3A3530" stroke-width="1.3"><path d="M9 16v4.5M14.5 16v4.5"/></g><ellipse cx="4.5" cy="11" rx="2.4" ry="2" fill="#3A3530"/><circle cx="3.9" cy="10.5" r=".45" fill="#fff"/>',
+reindeer:'<g stroke="#7A5A30" stroke-width="1.3" fill="none" stroke-linecap="round"><path d="M9 9C7 6 6 4 6.5 2M7.2 5.5C5.5 5 4.2 4 3.5 2.5M8 7.3C6.3 7.5 4.8 7 3.5 6"/><path d="M15 9c2-3 3-5 2.5-7M16.8 5.5c1.7-.5 3-1.5 3.7-3M16 7.3c1.7.2 3.2-.3 4.5-1.3"/></g><path d="M9 9.5c1-1 5-1 6 0 .8 2 .4 5-.6 7.5-.6 1.6-1.4 3.5-2.4 4-1-.5-1.8-2.4-2.4-4-1-2.5-1.4-5.5-.6-7.5z" fill="#A87A48" stroke="#6B4A28" stroke-width=".6"/><path d="M8.8 10.5C7 10 6 11 6 12c1.3.3 2.4-.2 3-1zM15.2 10.5c1.8-.5 2.8.5 2.8 1.5-1.3.3-2.4-.2-3-1z" fill="#A87A48"/><circle cx="10.6" cy="12.5" r=".7" fill="#222"/><circle cx="13.4" cy="12.5" r=".7" fill="#222"/><circle cx="12" cy="20.2" r="1.3" fill="#3A2A1A"/>',
+forest:'<path d="M8 3l5 8h-2.5l4 6.5H4l3.5-6.5H5z" fill="#2F7A3A" stroke="#1D5426" stroke-width=".5"/><path d="M16 6l4.5 7h-2.2l3.5 6H12l3.2-6H13z" fill="#3E8E46" stroke="#1D5426" stroke-width=".5"/><path d="M8 17.5V21M17 19v2.5" stroke="#6B4A2A" stroke-width="1.5"/>',
+rubber:'<path d="M8 2v20M15 2v20" stroke="#6B4A2A" stroke-width="0"/><rect x="7.5" y="2" width="7" height="20" rx="2" fill="#8A6038" stroke="#5E3E1E" stroke-width=".6"/><path d="M7.5 8l7 3M7.5 10.5l7 3" stroke="#3E2610" stroke-width=".8"/><path d="M14.5 13.5c1.5 1 2 2.3 2 3.5" stroke="#F4F1E8" stroke-width="1.2" fill="none"/><path d="M14.5 17.5h5v3.2c0 .8-.6 1.3-1.3 1.3h-2.4c-.7 0-1.3-.5-1.3-1.3z" fill="#D9D2C0" stroke="#7A7262" stroke-width=".5"/><path d="M15 18.3h4" stroke="#FFFFFF" stroke-width="1"/>',
+dia:'<path d="M6 4h12l4 5-10 12L2 9z" fill="#BFE6F5" stroke="#3D8FB8" stroke-width=".8"/><path d="M2 9h20M6 4l3 5 3-5 3 5 3-5M9 9l3 12 3-12" stroke="#3D8FB8" stroke-width=".6" fill="none"/><path d="M7 5.5l1.5 2.5" stroke="#FFFFFF" stroke-width="1"/>'
+};
+function svgIcon(k,size){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${ICON[k]}</svg>`}
+
+const AG_KIND={wheat:'小麦',corn:'とうもろこし',potato:'じゃがいも',beet:'てんさい（砂糖大根）',grape:'ぶどう（ワイン）',olive:'オリーブ',citrus:'オレンジ・柑橘類',sunflower:'ひまわり',coffee:'コーヒー',cacao:'カカオ',palm:'油やし（パーム油）',peanut:'落花生',tea:'茶',cotton:'綿花',date:'なつめやし',cane:'さとうきび',vanilla:'バニラ',dairy:'酪農',sheep:'羊（牧羊）',reindeer:'トナカイの遊牧',forest:'林業（タイガ）',rubber:'天然ゴム'};
+const MN_KIND={oil:['油','石油','#1d1d1f'],gas:['ガ','天然ガス','#5b6470'],coal:['炭','石炭','#3a3330'],fe:['Fe','鉄鉱石','#8a4a25'],cu:['Cu','銅','#c06a1f'],au:['Au','金','#c9a000'],dia:['','ダイヤモンド',''],ni:['Ni','ニッケル','#3d6a8f'],co:['Co','コバルト','#2449a6'],pt:['Pt','白金（プラチナ）','#6f7d8a'],u:['U','ウラン','#2f8a3a'],al:['Al','ボーキサイト','#a3472a'],p:['P','りん鉱石','#7d6532'],mn:['Mn','マンガン','#6a4a8f'],k:['K','カリ塩','#a0365a']};
+const AGRI=[
+ ['africa','cacao',-5.5,7],['africa','cacao',-1.5,6.8],['africa','cacao',5,7.3],['africa','cacao',12,4.5],
+ ['africa','coffee',38.5,7.5],['africa','coffee',32.5,1],['africa','coffee',37,-3.5],['africa','tea',35.3,-0.4],['africa','tea',34.5,-15.5],
+ ['africa','palm',7,5.3],['africa','peanut',-15.5,14.5],['africa','peanut',8,12],['africa','cotton',31,30.6],['africa','cotton',33,14.3],['africa','cotton',-6,12.5],
+ ['africa','date',30.5,25.5],['africa','date',5.5,32],['africa','olive',10.2,35],['africa','olive',-5.5,33.8],['africa','citrus',-9,30.4],['africa','grape',19,-33.7],
+ ['africa','corn',27,-27],['africa','corn',28,-14],['africa','cane',31,-29],['africa','vanilla',49.5,-14.5],['africa','sheep',22,-31.5],['africa','rubber',-9.5,6.5],['africa','wheat',-6.8,34.5],
+ ['europe','wheat',2,48.5],['europe','wheat',33,48.5],['europe','wheat',19.5,47],['europe','wheat',-1,52.5],
+ ['europe','grape',-0.5,44.8],['europe','grape',4,47.5],['europe','grape',11.2,43.4],['europe','grape',-2.5,42.4],['europe','grape',-7.6,41.2],['europe','grape',7.5,50],
+ ['europe','olive',-4,37.7],['europe','olive',16.5,40.8],['europe','olive',22.3,37.5],['europe','citrus',-0.5,39.4],['europe','citrus',14.5,37.5],
+ ['europe','potato',11,52.5],['europe','potato',19,52],['europe','potato',27.5,53.5],['europe','beet',3,49.8],['europe','beet',10,51.8],
+ ['europe','corn',20.5,45.5],['europe','corn',26,44.5],['europe','corn',0,43.8],['europe','sunflower',35,47.2],['europe','sunflower',27,45],
+ ['europe','dairy',9.5,56],['europe','dairy',5.8,52.8],['europe','dairy',8,47],['europe','dairy',-8,52.5],['europe','sheep',-3.8,52.4],['europe','sheep',-4.5,55.8],['europe','cotton',22.5,39.5],['europe','forest',16,63],['europe','forest',26,63],
+ ['russia','wheat',40,45.5],['russia','wheat',46,51.5],['russia','wheat',80,53],['russia','sunflower',41,48.5],['russia','beet',37,51],['russia','potato',38,55.5],['russia','dairy',33,58],
+ ['russia','tea',39.7,43.7],['russia','reindeer',70,67],['russia','reindeer',130,68],['russia','forest',100,60],['russia','forest',125,58],['russia','forest',50,62]
+];
+const MINE=[
+ ['africa','oil',6,4.8],['africa','oil',19,28],['africa','oil',6,30.5],['africa','oil',12.5,-7.5],['africa','oil',9,-1],['africa','gas',3.5,32.5],
+ ['africa','au',27.5,-26.5],['africa','au',-2,6],['africa','dia',25,-21.5],['africa','dia',23,-6.5],['africa','dia',24.8,-28.7],['africa','cu',28,-12.8],['africa','co',26.5,-10.7],
+ ['africa','pt',27.5,-25],['africa','al',-13.5,11],['africa','fe',-12.5,22.7],['africa','fe',23,-27.8],['africa','p',-6.9,32.9],['africa','u',7.4,18.7],['africa','u',15,-22.5],['africa','coal',29.5,-26],['africa','mn',22.9,-27.3],
+ ['europe','oil',1.5,57.5],['europe','oil',3,59.5],['europe','gas',6.8,53.2],['europe','gas',4.5,61],['europe','coal',7.2,51.5],['europe','coal',19,50.2],['europe','coal',38,48],
+ ['europe','fe',20.2,67.9],['europe','fe',33.4,47.9],['europe','fe',6,49.2],['europe','al',22.5,38.5],['europe','al',17.5,47.2],['europe','cu',16.1,51.4],['europe','k',27.5,52.8],
+ ['russia','oil',73,61.5],['russia','oil',53,54.5],['russia','oil',143,52.5],['russia','gas',76.5,66],['russia','gas',55,51.8],['russia','gas',114,61],
+ ['russia','coal',87,54],['russia','coal',64,67.5],['russia','coal',124.7,56.7],['russia','fe',37.5,51.3],['russia','dia',114,62.5],['russia','ni',88.2,69.4],['russia','ni',32,68.5],['russia','au',150,62]
+];
+const PRODUCT_REGIONS=new Set(['africa','europe','russia']);
+function badgeInner(kind,isMine,size){if(isMine){const [sym]=MN_KIND[kind];return kind==='dia'?svgIcon('dia',size):sym}return svgIcon(kind,size)}
+function badgeClass(kind,isMine){return isMine?('pd mine'+(kind==='dia'?' icon':'')):'pd agri icon'}
+function badgeStyle(kind,isMine){return isMine&&MN_KIND[kind][2]?'background:'+MN_KIND[kind][2]:''}
+function productBadge(kind,isMine){const el=document.createElement('button');el.type='button';const name=isMine?MN_KIND[kind][1]:AG_KIND[kind];
+  el.className=badgeClass(kind,isMine);el.style.cssText=badgeStyle(kind,isMine);el.innerHTML=badgeInner(kind,isMine,18);el.dataset.name=name;el.setAttribute('aria-label',name);el.title=name;
+  el.onclick=e=>{e.stopPropagation();const open=el.classList.toggle('open');el.innerHTML=badgeInner(kind,isMine,18)+(open?'<span class="pdn">'+name+'</span>':'')};
+  return el}
+function buildProducts(reg,S){const items=[];
+  const add=(arr,isMine)=>arr.forEach(([tag,kind,lon,lat])=>{if(tag!==cur.key)return;const [x,z]=toXZ(reg,lon,lat);const pos=new THREE.Vector3(x,hAtLL(lon,lat)+S*0.01,z);
+    const el=productBadge(kind,isMine);ovLabelsEl.appendChild(el);ovLabels.push([pos,el]);items.push([isMine,kind])});
+  if(OV.agri)add(AGRI,false);if(OV.mine)add(MINE,true);
+  const seen=new Set(),leg=[];items.forEach(([m,k])=>{const id=(m?'m':'a')+k;if(seen.has(id))return;seen.add(id);
+    leg.push(`<span class="pdl"><span class="${badgeClass(k,m)}" style="${badgeStyle(k,m)}">${badgeInner(k,m,18)}</span>${m?MN_KIND[k][1]:AG_KIND[k]}</span>`)});
+  const box=document.getElementById('productlegend');box.innerHTML=leg.join('');box.hidden=!leg.length}
 function buildOverlays(){while(ovGroup.children.length){const o=ovGroup.children[0];ovGroup.remove(o);o.geometry&&o.geometry.dispose()}ovLabelsEl.innerHTML='';ovLabels=[];
-  const list=document.getElementById('localwinds');list.innerHTML='';list.hidden=true;
+  const list=document.getElementById('localwinds');list.innerHTML='';list.hidden=true;document.getElementById('productlegend').hidden=true;
   if(!cur)return;const reg=cur.reg,S=regS(reg),r=S*0.0035,xs=reg.xs||1;
   if(OV.winds){const step=Math.max(4,Math.round(S/11));
     for(let lat=reg.T0-step/2;lat>reg.T1;lat-=step)for(let lon=reg.L0+step/2/xs;lon<reg.L1;lon+=step/xs){const [u,v]=windAt(lat,month),mag=Math.hypot(u,v);if(mag<0.25)continue;
@@ -613,6 +691,7 @@ function buildOverlays(){while(ovGroup.children.length){const o=ovGroup.children
       const pts=densify([a,b],0.4).map(([lo,la],k,arr)=>{const [x,z]=toXZ(reg,lo,la),t=k/(arr.length-1);return new THREE.Vector3(x,hAtLL(lo,la)+S*0.015+Math.sin(Math.PI*t)*S*0.02,z)});
       arrowTube(pts,0x8A2BB8,r*1.2,0.95);addLabel(name,pts[0].clone().setY(pts[0].y+S*0.01),'ov local');items.push([name,desc])});
     if(items.length){list.innerHTML=items.map(([n,d])=>`<li><b>${n}</b>${d}</li>`).join('');list.hidden=false}}
+  buildProducts(reg,S);
   drawLegend()}
 document.querySelectorAll('[data-ov]').forEach(b=>b.onclick=()=>{const k=b.dataset.ov;OV[k]=!OV[k];b.setAttribute('aria-pressed',OV[k]);buildOverlays()});
 
@@ -623,6 +702,7 @@ function showRegion(key){key=ALIAS[key]||key;if(!REGIONS[key])key=DEFAULT_REGION
   setTimeout(()=>{try{
     while(group3.children.length)group3.remove(group3.children[0]);labelsEl.innerHTML='';pins=[];
     cur=compute(key);const reg=cur.reg;group3.add(cur.mesh);
+    const hasPd=PRODUCT_REGIONS.has(key);document.getElementById('ov-agri').hidden=!hasPd;document.getElementById('ov-mine').hidden=!hasPd;
     reg.pins.forEach(p=>{const i=idx(p[1],p[2]),[x,z]=toXZ(reg,p[1],p[2]),y=Math.max(0,i<0?0:cur.HH[i])*reg.EX;
       const s=new THREE.Mesh(new THREE.SphereGeometry(0.45,14,10),new THREE.MeshBasicMaterial({color:0x2C2C2A}));s.position.set(x,y+0.9,z);s.visible=showPins;group3.add(s);
       const el=document.createElement('span');el.textContent=p[0];labelsEl.appendChild(el);pins.push([s.position,el,s])});
@@ -650,7 +730,14 @@ ren.domElement.addEventListener('pointerup',e=>{if(!down||!cur)return;if(Math.hy
 const v=new THREE.Vector3();
 function loop(){requestAnimationFrame(loop);ctl.update();ren.render(scene,cam);
   pins.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=!showPins||v.z>=1});
-  ovLabels.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=v.z>=1})}
+  ovLabels.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=v.z>=1});
+  cullLabels()}
+const PRI={local:0,cold:1,warm:1,monsoon:2};
+function cullLabels(){const placed=[];
+  pins.forEach(([p,el])=>{if(el.hidden)return;const x=parseFloat(el.style.left),y=parseFloat(el.style.top),w=el.offsetWidth,h=el.offsetHeight;placed.push([x-w/2,y-1.5*h,x+w/2,y-0.5*h])});
+  ovLabels.filter(([p,el])=>el.tagName==='SPAN').map(([p,el])=>el).sort((a,b)=>(PRI[a.className.split(' ')[1]]??3)-(PRI[b.className.split(' ')[1]]??3)).forEach(el=>{
+    if(el.hidden)return;const x=parseFloat(el.style.left),y=parseFloat(el.style.top),w=el.offsetWidth+4,h=el.offsetHeight+2,r=[x-w/2,y-h/2,x+w/2,y+h/2];
+    const hit=placed.some(q=>r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1]);el.style.visibility=hit?'hidden':'visible';if(!hit)placed.push(r)})}
 loop();
 new ResizeObserver(()=>{W=stage.clientWidth;H=stage.clientHeight;ren.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix()}).observe(stage);
 const mq=window.matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',()=>{if(cur&&selected)probe(...selected)});
