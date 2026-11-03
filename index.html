@@ -49,7 +49,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pd{z-index:1;position:absolute;transform:translate(-50%,-50%);font:700 11px var(--font-body);min-width:22px;height:22px;padding:0 4px;border-radius:11px;border:1px solid rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;cursor:pointer;line-height:1;pointer-events:auto}
 .pd.icon{background:#FFFDF6;padding:0 2px;height:26px;min-width:26px;border-radius:13px;gap:4px}.pd.icon svg{display:block}.pd .pdn{font:700 12px var(--font-body);color:#2a2a2a}.pd.mine .pdn{color:#fff}.pd.mine.icon .pdn{color:#2a2a2a}
 .pd.mine{color:#fff;border-radius:4px;gap:4px}.pd.mine.icon{border-radius:13px}
-.pd.open{font-size:12px;z-index:4;padding:0 6px}.pd .pdn{position:static;transform:none;border:0;background:none;padding:0}
+.pd.open{font-size:12px;z-index:4;padding:0 6px}.pd.sm,.pd.sm.icon{height:17px;min-width:17px;font-size:8.5px;padding:0 2px;border-radius:9px}.pd.sm.mine{border-radius:3px}.pd .pdn{position:static;transform:none;border:0;background:none;padding:0}
 .pdlegend .pd{position:static;transform:none;margin-right:6px;cursor:default;pointer-events:none}
 .pdlegend .pdl{display:inline-flex;align-items:center}
 .info{background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px}
@@ -142,7 +142,7 @@ const SA={
     return h+70+35*Math.sin(lon*1.7)*Math.cos(lat*1.3)+25*Math.sin(lon*4.1+lat*3.3)},
   cell(lon,lat,D){const dc=Math.min(D.dE,D.dW,D.dN,D.dS),ax=lerpT(SA_AX,lat),east=lon>ax,a=Math.abs(lat);
     let h=this.elev(lon,lat);h=20+(h-20)*Math.min(1,(dc+0.3)/1.5);const H=Math.max(0,h);
-    const cold=(!east)?Math.exp(-D.dW/1.5)*sig((lat+36)/1.5)*sig((-2-lat)/1.5):0;
+    const cold=(!east)?Math.exp(-D.dW/1.5)*sig((lat+36)/1.5)*sig((-4-lat)/1):0;
     const Ta=27-0.25*Math.max(0,a-10)-0.006*sq(Math.max(0,a-10))-6*cold-0.0055*H+1.2*sig((lat-3)/1)*sig((13-lat)/1)+1.5*Math.exp(-D.dE/2)*sig((lat+30)/2)*sig((-5-lat)/2);
     let amp=1+0.25*Math.max(0,a-10);if(a>45)amp=Math.min(amp,7-0.3*(a-45));amp*=0.75+0.25*Math.min(1,dc/5);if(cold>0)amp*=1-0.3*cold;
     const T=[],P=[],yung=lat>-25?Math.exp(-sq((lon-ax-1.2)/1.0)):0;
@@ -160,7 +160,8 @@ const SA={
         p*=1+0.8*yung;}
       else{p+=400*g(lon,lat,-77.5,5,4,25)*(lat>-2?1:0);
         const cw=-45-6*s;p+=260*Math.exp(-sq((lat-cw)/7))+(lat<-42?120:0);
-        p*=1-0.95*sig((lat+31)/1.5)*sig((-1-lat)/1.5);}
+        p+=330*pw(cosm(m,2.5),0.8)*g(lon,lat,-80,-1.2,2.5,6);
+        p*=1-0.95*sig((lat+31)/1.5)*sig((-3.5-lat)/1);}
       p*=1-0.7*g(lon,lat,-70,11.5,20,1.5);
       P.push(p)}
     return{h,T,P}}
@@ -412,8 +413,14 @@ const LATAM={L0:-118,L1:-34,T0:33,T1:-56,EX:0.0006,xs:0.95,focus:(()=>{const s=I
   elev(lon,lat){return isSA(lon,lat)?SA.elev(lon,lat):NAM.elev(lon,lat)},
   cell(lon,lat,D){return isSA(lon,lat)?SA.cell(lon,lat,D):NAM.cell(lon,lat,D)}};
 
-const REGION_LIST=[['europe','ヨーロッパ',EU],['russia','ロシア',RU],['central-asia','中央アジア',CAS],['west-asia','西アジア',WAS],['south-asia','南アジア',SAS],['east-asia','東アジア',EA],['southeast-asia','東南アジア',SEASIA],['africa','アフリカ',AF],['oceania','オセアニア',OCEANIA],['anglo-america','アングロアメリカ',ANGLO],['latin-america','ラテンアメリカ',LATAM]];
+let WORLD_RIDX=null,WORLD_GW=0;
+const WORLD={L0:-180,L1:180,T0:84,T1:-58,EX:0.0005,xs:1,Rres:2,world:true,focus:null,cam:[0,240,132],target:[0,0,6],
+  pins:[['東京',139.7,35.68],['ロンドン',-0.1,51.5],['ニューヨーク',-74,40.71],['カイロ',31.2,30],['ムンバイ',72.88,19.08],['シドニー',151.2,-33.87],['リオデジャネイロ',-43.2,-22.9],['モスクワ',37.6,55.75]],start:[139.7,35.68],
+  elev(){return 20},
+  cell(lon,lat,D){const c=Math.round((lon-this.L0)*R),r=Math.round((this.T0-lat)*R),k=WORLD_RIDX[r*WORLD_GW+c];const sr=SUBREG[k-1];let L=lon;if(L<sr.L0-15)L+=360;else if(L>sr.L1+15)L-=360;return sr.cell(L,lat,D)}};
+const REGION_LIST=[['world','世界',WORLD],['europe','ヨーロッパ',EU],['russia','ロシア',RU],['central-asia','中央アジア',CAS],['west-asia','西アジア',WAS],['south-asia','南アジア',SAS],['east-asia','東アジア',EA],['southeast-asia','東南アジア',SEASIA],['africa','アフリカ',AF],['oceania','オセアニア',OCEANIA],['anglo-america','アングロアメリカ',ANGLO],['latin-america','ラテンアメリカ',LATAM]];
 const REGIONS=Object.fromEntries(REGION_LIST.map(r=>[r[0],r[2]]));
+const SUBLIST=REGION_LIST.filter(r=>!r[2].world),SUBREG=SUBLIST.map(r=>r[2]),SUBKEYS=SUBLIST.map(r=>r[0]);
 const ALIAS={'south-america':'latin-america'};
 const DEFAULT_REGION='east-asia';
 
@@ -433,7 +440,7 @@ const GROUPS=[['Af','熱帯雨林気候','#D3303B'],['Am','弱い乾季のある
 const GMAP=Object.fromEntries(GROUPS.map(x=>[x[0],x]));
 function group(k){if(k[0]==='D')return k[1]==='w'?'Dw':'Df';if(k==='Af'||k==='Am'||k==='Aw'||k==='Cfa'||k==='ET'||k==='EF'||k==='Df'||k==='Dw')return k;if(k[0]==='B')return k.slice(0,2);if(k==='Cfb'||k==='Cfc')return 'Cfb';return k.slice(0,2)}
 
-const R=4,SEA=[46,104,150],OTHER=[150,148,142],BORDER=[34,34,38];
+let R=4;const SEA=[46,104,150],OTHER=[150,148,142],BORDER=[34,34,38];
 const relief=[[0,[79,138,60]],[200,[90,145,64]],[800,[169,180,94]],[1800,[196,154,98]],[3200,[125,92,64]],[4400,[238,238,234]]];
 function reliefColor(h){for(let i=1;i<relief.length;i++){if(h<relief[i][0]){const a=relief[i-1],b=relief[i],k=Math.max(0,(h-a[0])/(b[0]-a[0]));return a[1].map((v,j)=>v+(b[1][j]-v)*k)}}return relief[relief.length-1][1]}
 function rgb(s){const c=d3.color(s);return[c.r,c.g,c.b]}
@@ -471,7 +478,9 @@ function compute(key){if(cache[key])return cache[key];const reg=REGIONS[key],GW=
   const projp=d3.geoEquirectangular().scale(R*180/Math.PI).translate([-reg.L0*R+PAD,reg.T0*R+PAD]);
   const ALLP=mask(ctxp,projp,topojson.feature(world,world.objects.land),GW+2*PAD,GH+2*PAD);
   const proj=d3.geoEquirectangular().scale(R*180/Math.PI).translate([-reg.L0*R,reg.T0*R]);
-  let FOC=mask(ctx,proj,reg.focus?topojson.merge(world,world.objects.countries.geometries.filter(reg.focus)):topojson.feature(world,world.objects.land),GW,GH);
+  let FOC,RIDX=null;
+  if(reg.world){FOC=new Uint8Array(GW*GH);RIDX=new Uint8Array(GW*GH);SUBREG.forEach((sr,k)=>{const m=mask(ctx,proj,topojson.merge(world,world.objects.countries.geometries.filter(sr.focus)),GW,GH);for(let i=0;i<m.length;i++)if(m[i]){RIDX[i]=k+1;FOC[i]=1}});WORLD_RIDX=RIDX;WORLD_GW=GW}
+  else FOC=mask(ctx,proj,reg.focus?topojson.merge(world,world.objects.countries.geometries.filter(reg.focus)):topojson.feature(world,world.objects.land),GW,GH);
   const o=build(reg,ALLP,FOC,GW,GH,PAD),ALL=o.ALL;for(let i=0;i<FOC.length;i++)FOC[i]=FOC[i]&&ALL[i]?1:0;
   const EDGE=new Uint8Array(FOC.length);for(let r=0;r<GH;r++)for(let c=0;c<GW;c++){const i=r*GW+c;if(!FOC[i])continue;
     for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){const rr=r+dr,cc=c+dc;if(rr<0||cc<0||rr>=GH||cc>=GW)continue;const j=rr*GW+cc;if(ALL[j]&&!FOC[j]){EDGE[i]=1;break}}}
@@ -480,20 +489,20 @@ function compute(key){if(cache[key])return cache[key];const reg=REGIONS[key],GW=
   geo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(pos.count*3),3));geo.computeVertexNormals();
   const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));
   const used=new Set();for(let i=0;i<FOC.length;i++)if(FOC[i])used.add(group(o.KK[i]));
-  return cache[key]={key,reg,GW,GH,ALL,FOC,EDGE,...o,geo,mesh,used}}
+  return cache[key]={key,reg,GW,GH,RES:R,RIDX,ALL,FOC,EDGE,...o,geo,mesh,used}}
 
 function toXZ(reg,lon,lat){return[(lon-(reg.L0+reg.L1)/2)*(reg.xs||1),(reg.T0+reg.T1)/2-lat]}
 function idx(lon,lat){const c=Math.round((lon-cur.reg.L0)*R),r=Math.round((cur.reg.T0-lat)*R);if(c<0||r<0||c>=cur.GW||r>=cur.GH)return -1;return r*cur.GW+c}
 
 function recolor(){if(!cur)return;const col=cur.geo.attributes.color.array,N=cur.ALL.length,dimMask=(typeof SEL!=='undefined'&&SEL&&SEL.mask)?SEL.mask:null;
-  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(cur.EDGE[i])k=BORDER;else if(mode==='tect'){const t=tectArr();k=rgb(TECT_NAME[(t&&t[i])||1][1])}else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
+  for(let i=0;i<N;i++){let k;if(!cur.ALL[i])k=SEA;else if(!cur.FOC[i])k=OTHER;else if(cur.EDGE[i])k=BORDER;else if(mode==='tect'){const t=tectArr();k=(t&&t[i])?rgb(TECT_NAME[t[i]][1]):[205,203,196]}else if(mode==='terrain')k=reliefColor(cur.HH[i]);else if(mode==='koppen')k=rgb(GMAP[group(cur.KK[i])][2]);else if(mode==='temp')k=tempColor(cur.TT[i*12+month]);else k=precColor(cur.PP[i*12+month]);
     if(dimMask&&cur.FOC[i]&&!cur.EDGE[i]&&!dimMask[i])k=[k[0]*0.25+110,k[1]*0.25+110,k[2]*0.25+110];
     col[i*3]=k[0]/255;col[i*3+1]=k[1]/255;col[i*3+2]=k[2]/255}
   cur.geo.attributes.color.needsUpdate=true;drawLegend()}
 
 function drawLegend(){const L=document.getElementById('legend');let h='';
   if(mode==='koppen')h=GROUPS.filter(x=>cur.used.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i><b>${x[0]}</b>${x[1]}</span>`).join('');
-  else if(mode==='tect')h=[1,2,3].map(t=>`<span><i style="background:${TECT_NAME[t][1]}"></i><b>${TECT_NAME[t][0]}</b>${TECT_NAME[t][2]}</span>`).join('')+'<span style="color:var(--muted)">※西シベリア低地や東シベリアの山地など、教科書によって区分が違う地域があります</span>';
+  else if(mode==='tect')h=[1,2,3].map(t=>`<span><i style="background:${TECT_NAME[t][1]}"></i><b>${TECT_NAME[t][0]}</b>${TECT_NAME[t][2]}</span>`).join('')+'<span style="color:var(--muted)">※西シベリア低地や東シベリアの山地など、教科書によって区分が違う地域があります。地体構造の塗り分けはアフリカ・ヨーロッパ・ロシアのみ（世界地図ではそれ以外は灰色）</span>';
   else if(mode==='terrain')h=[['低地',0],['〜800m',500],['〜1800m',1300],['〜3200m',2500],['4000m〜',4300]].map(a=>`<span><i style="background:rgb(${reliefColor(a[1]).map(Math.round)})"></i>${a[0]}</span>`).join('');
   else if(mode==='temp')h=[-5,5,15,25,35].map(t=>`<span><i style="background:rgb(${tempColor(t)})"></i>${t}℃</span>`).join('')+'<span>（'+(month+1)+'月の平均気温）</span>';
   else h=[0,25,100,200,400].map(p=>`<span><i style="background:rgb(${precColor(p)})"></i>${p}mm</span>`).join('')+'<span>（'+(month+1)+'月の降水量）</span>';
@@ -634,12 +643,17 @@ sheep:'<g fill="#FFFFFF" stroke="#9C968C" stroke-width=".6"><circle cx="9" cy="1
 reindeer:'<g stroke="#7A5A30" stroke-width="1.3" fill="none" stroke-linecap="round"><path d="M9 9C7 6 6 4 6.5 2M7.2 5.5C5.5 5 4.2 4 3.5 2.5M8 7.3C6.3 7.5 4.8 7 3.5 6"/><path d="M15 9c2-3 3-5 2.5-7M16.8 5.5c1.7-.5 3-1.5 3.7-3M16 7.3c1.7.2 3.2-.3 4.5-1.3"/></g><path d="M9 9.5c1-1 5-1 6 0 .8 2 .4 5-.6 7.5-.6 1.6-1.4 3.5-2.4 4-1-.5-1.8-2.4-2.4-4-1-2.5-1.4-5.5-.6-7.5z" fill="#A87A48" stroke="#6B4A28" stroke-width=".6"/><path d="M8.8 10.5C7 10 6 11 6 12c1.3.3 2.4-.2 3-1zM15.2 10.5c1.8-.5 2.8.5 2.8 1.5-1.3.3-2.4-.2-3-1z" fill="#A87A48"/><circle cx="10.6" cy="12.5" r=".7" fill="#222"/><circle cx="13.4" cy="12.5" r=".7" fill="#222"/><circle cx="12" cy="20.2" r="1.3" fill="#3A2A1A"/>',
 forest:'<path d="M8 3l5 8h-2.5l4 6.5H4l3.5-6.5H5z" fill="#2F7A3A" stroke="#1D5426" stroke-width=".5"/><path d="M16 6l4.5 7h-2.2l3.5 6H12l3.2-6H13z" fill="#3E8E46" stroke="#1D5426" stroke-width=".5"/><path d="M8 17.5V21M17 19v2.5" stroke="#6B4A2A" stroke-width="1.5"/>',
 rubber:'<path d="M8 2v20M15 2v20" stroke="#6B4A2A" stroke-width="0"/><rect x="7.5" y="2" width="7" height="20" rx="2" fill="#8A6038" stroke="#5E3E1E" stroke-width=".6"/><path d="M7.5 8l7 3M7.5 10.5l7 3" stroke="#3E2610" stroke-width=".8"/><path d="M14.5 13.5c1.5 1 2 2.3 2 3.5" stroke="#F4F1E8" stroke-width="1.2" fill="none"/><path d="M14.5 17.5h5v3.2c0 .8-.6 1.3-1.3 1.3h-2.4c-.7 0-1.3-.5-1.3-1.3z" fill="#D9D2C0" stroke="#7A7262" stroke-width=".5"/><path d="M15 18.3h4" stroke="#FFFFFF" stroke-width="1"/>',
+rice:'<path d="M12 22c0-6-1-11-4-15" stroke="#8A7A2A" stroke-width="1.3" fill="none"/><path d="M12 22c.5-6 2-10 5-13" stroke="#6E9A2A" stroke-width="1.1" fill="none"/><g fill="#E8C34A" stroke="#A88A1E" stroke-width=".4"><ellipse cx="8" cy="7" rx="1" ry="1.7" transform="rotate(-20 8 7)"/><ellipse cx="6.6" cy="9.5" rx="1" ry="1.7" transform="rotate(-10 6.6 9.5)"/><ellipse cx="9.4" cy="9.6" rx="1" ry="1.7" transform="rotate(-30 9.4 9.6)"/><ellipse cx="6.4" cy="12.4" rx="1" ry="1.7"/><ellipse cx="9" cy="12.6" rx="1" ry="1.7" transform="rotate(-20 9 12.6)"/><ellipse cx="7" cy="15.3" rx="1" ry="1.6"/><ellipse cx="9.6" cy="15.4" rx="1" ry="1.6" transform="rotate(-15 9.6 15.4)"/><ellipse cx="7.8" cy="4.4" rx=".9" ry="1.5" transform="rotate(-25 7.8 4.4)"/></g><path d="M17 9c1.5-2.5 3.5-3.5 5-3.5-1 2-3 3.5-5 3.5z" fill="#6E9A2A"/>',
+soy:'<path d="M12 22V4" stroke="#6B8A2A" stroke-width="1.2"/><g fill="#9CC25A" stroke="#5E7E22" stroke-width=".5"><path d="M12 7c-4 0-6 1.5-6.5 4 3 .3 5.5-1 6.5-4z"/><path d="M12 12c4 0 6 1.5 6.5 4-3 .3-5.5-1-6.5-4z"/></g><g fill="#C9B25A" stroke="#8A7A2A" stroke-width=".5"><path d="M12 5c3-.5 5 .5 6 2.5-1.5 1-4 1-6-1z"/><path d="M12 10c-3-.5-5 .5-6 2.5 1.5 1 4 1 6-1z"/><path d="M12 15c3-.5 5 .5 6 2.5-1.5 1-4 1-6-1z"/><path d="M12 18c-3-.5-5 .5-6 2.5 1.5 1 4 1 6-1z"/></g>',
+banana:'<path d="M17 3l1.5 1.5" stroke="#6B4A2A" stroke-width="1.6"/><g stroke="#B8920E" stroke-width=".6"><path d="M17.5 4.5C14 6 9 11 4 12c1 3.5 5 4 9 1.5 3.5-2.2 5.5-6 4.5-9z" fill="#F5CF2A"/><path d="M17.5 4.5C16 8 13 14 7 17c1.5 3 6 2.5 9-1 2.6-3 3-8 1.5-11.5z" fill="#F9DC4A"/><path d="M17.5 4.5c0 4-1 10-5.5 15 2.5 2 6 .5 7.5-3.5 1.4-3.8.5-8.5-2-11.5z" fill="#F2C51C"/></g>',
+cattle:'<path d="M5 6C2.5 5 2 3 3 2c1 1.3 2.3 2 3.5 2.2zM19 6c2.5-1 3-3 2-4-1 1.3-2.3 2-3.5 2.2z" fill="#E8E2D6" stroke="#6B6358" stroke-width=".5"/><path d="M5.8 8C3.5 7.5 2.5 9 3 10c1 1.2 2.5.6 3.2 0zM18.2 8c2.3-.5 3.3 1 2.8 2-1 1.2-2.5.6-3.2 0z" fill="#8A4E2A"/><path d="M7 5.5c3-2 7-2 10 0 1.5 3 1.5 7 0 10.5-1 2.5-3 4-5 4s-4-1.5-5-4C5.5 12.5 5.5 8.5 7 5.5z" fill="#9A5A30" stroke="#5E361A" stroke-width=".7"/><path d="M10 6c1-1 3-1 4 0-.3 2-1 3-2 3s-1.7-1-2-3z" fill="#FFFFFF"/><ellipse cx="12" cy="16.5" rx="3.6" ry="2.6" fill="#D9A890" stroke="#8A5A44" stroke-width=".5"/><circle cx="10.6" cy="16.6" r=".6" fill="#5A3020"/><circle cx="13.4" cy="16.6" r=".6" fill="#5A3020"/><circle cx="9.3" cy="10.5" r=".9" fill="#222"/><circle cx="14.7" cy="10.5" r=".9" fill="#222"/>',
+jute:'<g stroke="#4E7A2A" stroke-width="1.1"><path d="M7 22V5M10 22V3M13 22V4M16 22V6"/></g><g fill="#6EA03A"><path d="M7 5c-2-1-3.5-1-4.5 0 1.5 1.2 3 1.2 4.5 0zM10 3c2-1 3.5-1 4.5 0-1.5 1.2-3 1.2-4.5 0zM13 4c-2-1-3.5-1-4.5 0 1.5 1.2 3 1.2 4.5 0zM16 6c2-1 3.5-1 4.5 0-1.5 1.2-3 1.2-4.5 0z"/></g><path d="M5 15.5h13.5v3.5H5z" fill="#D9B36A" stroke="#9C7A3A" stroke-width=".6"/><path d="M5 17.2h13.5" stroke="#9C7A3A" stroke-width=".5"/>',
 dia:'<path d="M6 4h12l4 5-10 12L2 9z" fill="#BFE6F5" stroke="#3D8FB8" stroke-width=".8"/><path d="M2 9h20M6 4l3 5 3-5 3 5 3-5M9 9l3 12 3-12" stroke="#3D8FB8" stroke-width=".6" fill="none"/><path d="M7 5.5l1.5 2.5" stroke="#FFFFFF" stroke-width="1"/>'
 };
 function svgIcon(k,size){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${ICON[k]}</svg>`}
 
-const AG_KIND={wheat:'小麦',corn:'とうもろこし',potato:'じゃがいも',beet:'てんさい（砂糖大根）',grape:'ぶどう（ワイン）',olive:'オリーブ',citrus:'オレンジ・柑橘類',sunflower:'ひまわり',coffee:'コーヒー',cacao:'カカオ',palm:'油やし（パーム油）',peanut:'落花生',tea:'茶',cotton:'綿花',date:'なつめやし',cane:'さとうきび',vanilla:'バニラ',dairy:'酪農',sheep:'羊（牧羊）',reindeer:'トナカイの遊牧',forest:'林業（タイガ）',rubber:'天然ゴム'};
-const MN_KIND={oil:['油','石油','#1d1d1f'],gas:['ガ','天然ガス','#5b6470'],coal:['炭','石炭','#3a3330'],fe:['Fe','鉄鉱石','#8a4a25'],cu:['Cu','銅','#c06a1f'],au:['Au','金','#c9a000'],dia:['','ダイヤモンド',''],ni:['Ni','ニッケル','#3d6a8f'],co:['Co','コバルト','#2449a6'],pt:['Pt','白金（プラチナ）','#6f7d8a'],u:['U','ウラン','#2f8a3a'],al:['Al','ボーキサイト','#a3472a'],p:['P','りん鉱石','#7d6532'],mn:['Mn','マンガン','#6a4a8f'],k:['K','カリ塩','#a0365a']};
+const AG_KIND={wheat:'小麦',corn:'とうもろこし',potato:'じゃがいも',beet:'てんさい（砂糖大根）',grape:'ぶどう（ワイン）',olive:'オリーブ',citrus:'オレンジ・柑橘類',sunflower:'ひまわり',coffee:'コーヒー',cacao:'カカオ',palm:'油やし（パーム油）',peanut:'落花生',tea:'茶',cotton:'綿花',date:'なつめやし',cane:'さとうきび',vanilla:'バニラ',dairy:'酪農',sheep:'羊（牧羊）',reindeer:'トナカイの遊牧',forest:'林業（タイガ）',rubber:'天然ゴム',rice:'米',soy:'大豆',banana:'バナナ',cattle:'肉牛（牧牛）',jute:'ジュート'};
+const MN_KIND={oil:['油','石油','#1d1d1f'],gas:['ガ','天然ガス','#5b6470'],coal:['炭','石炭','#3a3330'],fe:['Fe','鉄鉱石','#8a4a25'],cu:['Cu','銅','#c06a1f'],au:['Au','金','#c9a000'],dia:['','ダイヤモンド',''],ni:['Ni','ニッケル','#3d6a8f'],co:['Co','コバルト','#2449a6'],pt:['Pt','白金（プラチナ）','#6f7d8a'],u:['U','ウラン','#2f8a3a'],al:['Al','ボーキサイト','#a3472a'],p:['P','りん鉱石','#7d6532'],mn:['Mn','マンガン','#6a4a8f'],k:['K','カリ塩','#a0365a'],sn:['Sn','すず','#5d7c7a'],ag:['Ag','銀','#8d9aa6'],w:['W','タングステン','#45505c'],ree:['RE','レアアース','#1f7a6e'],li:['Li','リチウム','#2c8fb8']};
 const AGRI=[
  ['africa','cacao',-5.5,7],['africa','cacao',-1.5,6.8],['africa','cacao',5,7.3],['africa','cacao',12,4.5],
  ['africa','coffee',38.5,7.5],['africa','coffee',32.5,1],['africa','coffee',37,-3.5],['africa','tea',35.3,-0.4],['africa','tea',34.5,-15.5],
@@ -653,7 +667,19 @@ const AGRI=[
  ['europe','corn',20.5,45.5],['europe','corn',26,44.5],['europe','corn',0,43.8],['europe','sunflower',35,47.2],['europe','sunflower',27,45],
  ['europe','dairy',9.5,56],['europe','dairy',5.8,52.8],['europe','dairy',8,47],['europe','dairy',-8,52.5],['europe','sheep',-3.8,52.4],['europe','sheep',-4.5,55.8],['europe','cotton',22.5,39.5],['europe','forest',16,63],['europe','forest',26,63],
  ['russia','wheat',40,45.5],['russia','wheat',46,51.5],['russia','wheat',80,53],['russia','sunflower',41,48.5],['russia','beet',37,51],['russia','potato',38,55.5],['russia','dairy',33,58],
- ['russia','tea',39.7,43.7],['russia','reindeer',70,67],['russia','reindeer',130,68],['russia','forest',100,60],['russia','forest',125,58],['russia','forest',50,62]
+ ['russia','tea',39.7,43.7],['russia','reindeer',70,67],['russia','reindeer',130,68],['russia','forest',100,60],['russia','forest',125,58],['russia','forest',50,62],
+ ['east-asia','rice',114,29.5],['east-asia','rice',120.5,31],['east-asia','rice',139.2,37.6],['east-asia','rice',127,35.5],['east-asia','wheat',115.5,36.5],['east-asia','wheat',108.5,34.5],['east-asia','soy',126.5,46.5],['east-asia','corn',124.5,43.5],
+ ['east-asia','tea',118,28],['east-asia','tea',138.2,34.9],['east-asia','cotton',81,41.2],['east-asia','cotton',116.5,37.8],['east-asia','sheep',105,46],['east-asia','cane',109,23],
+ ['southeast-asia','rice',105.5,10],['southeast-asia','rice',100.5,15],['southeast-asia','rice',95.5,17],['southeast-asia','rice',110,-7],['southeast-asia','rice',120.8,15.5],['southeast-asia','rubber',101.5,3.8],['southeast-asia','rubber',100.5,8],['southeast-asia','rubber',103,-1.5],
+ ['southeast-asia','palm',102.6,2.6],['southeast-asia','palm',101,0.5],['southeast-asia','palm',113,-1.5],['southeast-asia','coffee',108,12.7],['southeast-asia','banana',125.5,7.5],['southeast-asia','cane',102.5,15.5],
+ ['south-asia','rice',88.5,23],['south-asia','rice',80.5,16.5],['south-asia','wheat',75.5,30.5],['south-asia','wheat',72.5,30.5],['south-asia','cotton',76,20],['south-asia','cotton',71,28.5],['south-asia','tea',93.5,26.6],['south-asia','tea',88.3,27],['south-asia','tea',80.8,7],['south-asia','jute',89.5,24],['south-asia','cane',80,27],
+ ['central-asia','cotton',66,40.5],['central-asia','cotton',60.5,41.5],['central-asia','cotton',61.5,37.8],['central-asia','wheat',69,53],['central-asia','sheep',67,45],
+ ['west-asia','date',44.5,31],['west-asia','date',49.5,25.5],['west-asia','wheat',33,38.5],['west-asia','wheat',49,34],['west-asia','cotton',39,37],['west-asia','olive',36.5,35.5],['west-asia','olive',27.5,38.5],['west-asia','citrus',34.8,32],['west-asia','tea',40.5,41],['west-asia','sheep',40,33],
+ ['oceania','wheat',147,-34],['oceania','wheat',117,-31.5],['oceania','sheep',145,-31],['oceania','sheep',171.5,-44],['oceania','cattle',135,-19],['oceania','cattle',145,-23],['oceania','cane',146,-18.5],['oceania','dairy',175.5,-38],['oceania','dairy',145.8,-38.3],['oceania','grape',138.9,-34.5],
+ ['anglo-america','wheat',-101,49.5],['anglo-america','wheat',-98.5,38.5],['anglo-america','wheat',-100.5,47.5],['anglo-america','corn',-93.5,42],['anglo-america','soy',-88.5,39.5],['anglo-america','cotton',-101.5,33.6],['anglo-america','cotton',-90.5,33.5],['anglo-america','dairy',-89.5,44.5],['anglo-america','dairy',-76,43],
+ ['anglo-america','cattle',-101,41],['anglo-america','cattle',-99,35],['anglo-america','citrus',-81.5,28],['anglo-america','citrus',-119.3,36.3],['anglo-america','grape',-122.4,38.4],['anglo-america','forest',-123,47],['anglo-america','forest',-75,49],
+ ['latin-america','coffee',-46.5,-21.5],['latin-america','coffee',-75.6,5],['latin-america','cane',-48,-21.5],['latin-america','cane',-79,22],['latin-america','soy',-55.5,-13],['latin-america','soy',-61,-33],['latin-america','wheat',-61.5,-36],['latin-america','cattle',-59,-37],['latin-america','cattle',-55,-20],
+ ['latin-america','banana',-79.9,-1.6],['latin-america','banana',-83.5,10.2],['latin-america','banana',-87.8,15.5],['latin-america','cacao',-39.3,-14.8],['latin-america','cacao',-80.15,-1.2],['latin-america','corn',-101.5,20.5],['latin-america','sheep',-69,-47],['latin-america','grape',-68.8,-33],['latin-america','grape',-71,-34.5],['latin-america','citrus',-49.5,-21]
 ];
 const MINE=[
  ['africa','oil',6,4.8],['africa','oil',19,28],['africa','oil',6,30.5],['africa','oil',12.5,-7.5],['africa','oil',9,-1],['africa','gas',3.5,32.5],
@@ -662,20 +688,31 @@ const MINE=[
  ['europe','oil',1.5,57.5],['europe','oil',3,59.5],['europe','gas',6.8,53.2],['europe','gas',4.5,61],['europe','coal',7.2,51.5],['europe','coal',19,50.2],['europe','coal',38,48],
  ['europe','fe',20.2,67.9],['europe','fe',33.4,47.9],['europe','fe',6,49.2],['europe','al',22.5,38.5],['europe','al',17.5,47.2],['europe','cu',16.1,51.4],['europe','k',27.5,52.8],
  ['russia','oil',73,61.5],['russia','oil',53,54.5],['russia','oil',143,52.5],['russia','gas',76.5,66],['russia','gas',55,51.8],['russia','gas',114,61],
- ['russia','coal',87,54],['russia','coal',64,67.5],['russia','coal',124.7,56.7],['russia','fe',37.5,51.3],['russia','dia',114,62.5],['russia','ni',88.2,69.4],['russia','ni',32,68.5],['russia','au',150,62]
+ ['russia','coal',87,54],['russia','coal',64,67.5],['russia','coal',124.7,56.7],['russia','fe',37.5,51.3],['russia','dia',114,62.5],['russia','ni',88.2,69.4],['russia','ni',32,68.5],['russia','au',150,62],
+ ['east-asia','coal',112.5,37.8],['east-asia','coal',110,39.5],['east-asia','fe',123,41.1],['east-asia','ree',110,41.8],['east-asia','w',114.5,25.8],['east-asia','oil',125,46.6],
+ ['southeast-asia','sn',101.1,4.6],['southeast-asia','sn',106,-2.2],['southeast-asia','oil',114.5,4.5],['southeast-asia','oil',101.5,1],['southeast-asia','gas',117.5,0.1],['southeast-asia','coal',116,-1.5],['southeast-asia','ni',121.5,-2.5],['southeast-asia','cu',137.1,-4.05],
+ ['south-asia','fe',85.5,22],['south-asia','fe',74.1,15.4],['south-asia','coal',86.5,23.7],['south-asia','oil',71.5,19.5],['south-asia','gas',69.2,28.6],
+ ['central-asia','oil',53,46],['central-asia','u',68,44],['central-asia','coal',73.1,49.8],['central-asia','gas',61,37.5],['central-asia','au',64.6,41.5],
+ ['west-asia','oil',49.3,25.3],['west-asia','oil',47.9,29.2],['west-asia','oil',44.4,35.5],['west-asia','oil',47.5,30.5],['west-asia','oil',49,31.5],['west-asia','oil',54,24],['west-asia','gas',51.5,25.8],['west-asia','gas',52,27.5],
+ ['oceania','fe',118.5,-22.5],['oceania','coal',148.5,-22.5],['oceania','coal',151,-32.5],['oceania','al',141.9,-12.6],['oceania','al',136.8,-12.3],['oceania','au',121.5,-30.8],['oceania','u',136.9,-30.4],['oceania','u',132.9,-12.7],['oceania','ni',165.8,-21.7],['oceania','li',116.1,-33.9],['oceania','gas',116.5,-20],
+ ['anglo-america','oil',-102.5,31.8],['anglo-america','oil',-91,28.5],['anglo-america','oil',-148.4,70.2],['anglo-america','oil',-111.5,57],['anglo-america','gas',-78,41],['anglo-america','coal',-81,38],['anglo-america','coal',-105.5,44],['anglo-america','fe',-92.5,47.5],['anglo-america','fe',-66.9,52.9],
+ ['anglo-america','cu',-110.7,33],['anglo-america','u',-105.5,58],['anglo-america','ni',-81,46.5],['anglo-america','au',-116.5,40.8],['anglo-america','k',-106,51.5],
+ ['latin-america','cu',-68.9,-22.3],['latin-america','cu',-69.1,-24.8],['latin-america','cu',-70.5,-17],['latin-america','ag',-102.6,22.8],['latin-america','ag',-76,-11],['latin-america','sn',-66.6,-18.4],['latin-america','fe',-50.2,-6],['latin-america','fe',-43.2,-19.6],['latin-america','al',-77.3,18.1],['latin-america','al',-56.4,-1.8],
+ ['latin-america','oil',-71.5,10],['latin-america','oil',-64,8.5],['latin-america','oil',-92,19.5],['latin-america','oil',-41,-23.5],['latin-america','li',-68.3,-23.5],['latin-america','li',-67.5,-20.2],['latin-america','coal',-72.6,11.1]
 ];
-const PRODUCT_REGIONS=new Set(['africa','europe','russia']);
+const PRODUCT_REGIONS=new Set(REGION_LIST.map(r=>r[0]));
 function badgeInner(kind,isMine,size){if(isMine){const [sym]=MN_KIND[kind];return kind==='dia'?svgIcon('dia',size):sym}return svgIcon(kind,size)}
 function badgeClass(kind,isMine){return isMine?('pd mine'+(kind==='dia'?' icon':'')):'pd agri icon'}
 function badgeStyle(kind,isMine){return isMine&&MN_KIND[kind][2]?'background:'+MN_KIND[kind][2]:''}
 function productBadge(kind,isMine){const el=document.createElement('button');el.type='button';const name=isMine?MN_KIND[kind][1]:AG_KIND[kind];
-  el.className=badgeClass(kind,isMine);el.style.cssText=badgeStyle(kind,isMine);el.innerHTML=badgeInner(kind,isMine,18);el.dataset.name=name;el.setAttribute('aria-label',name);el.title=name;
+  el.className=badgeClass(kind,isMine);el.style.cssText=badgeStyle(kind,isMine);el.innerHTML=badgeInner(kind,isMine,PD_SIZE);el.dataset.name=name;el.setAttribute('aria-label',name);el.title=name;
   el.dataset.kind=kind;el.dataset.mine=String(isMine);if(typeof SEL!=='undefined'&&SEL&&SEL.kind===kind&&SEL.mine===isMine){el.classList.add('open');el.innerHTML+='<span class="pdn">'+name+'</span>'}
   el.onclick=e=>{e.stopPropagation();selectProduct(kind,isMine)};
   return el}
-function buildProducts(reg,S){const items=[];
-  const add=(arr,isMine)=>arr.forEach(([tag,kind,lon,lat])=>{if(tag!==cur.key)return;const [x,z]=toXZ(reg,lon,lat);const pos=new THREE.Vector3(x,hAtLL(lon,lat)+S*0.01,z);
-    const el=productBadge(kind,isMine);ovLabelsEl.appendChild(el);ovLabels.push([pos,el]);items.push([isMine,kind])});
+let PD_SIZE=18;
+function buildProducts(reg,S){const items=[];PD_SIZE=cur.key==='world'?12:18;
+  const add=(arr,isMine)=>arr.forEach(([tag,kind,lon,lat])=>{if(tag!==cur.key&&cur.key!=='world')return;const [x,z]=toXZ(reg,lon,lat);const pos=new THREE.Vector3(x,hAtLL(lon,lat)+S*0.01,z);
+    const el=productBadge(kind,isMine);if(cur.key==='world')el.classList.add('sm');ovLabelsEl.appendChild(el);ovLabels.push([pos,el]);items.push([isMine,kind])});
   if(OV.agri)add(AGRI,false);if(OV.mine)add(MINE,true);
   const seen=new Set(),leg=[];items.forEach(([m,k])=>{const id=(m?'m':'a')+k;if(seen.has(id))return;seen.add(id);
     leg.push(`<span class="pdl" role="button" tabindex="0" data-kind="${k}" data-mine="${m}"><span class="${badgeClass(k,m)}" style="${badgeStyle(k,m)}">${badgeInner(k,m,18)}</span>${m?MN_KIND[k][1]:AG_KIND[k]}</span>`)});
@@ -700,28 +737,33 @@ const TECT={
 };
 const TECT_NAME={1:['安定陸塊','#C9A24A','先カンブリア時代の古い岩盤。平原や台地が多い。鉄鉱石・金・ダイヤモンドなど'],2:['古期造山帯','#9B7BD0','古生代に山脈ができ、長い侵食でなだらかになった地域。石炭が多い'],3:['新期造山帯','#EE7FA8','中生代以降に山脈ができた地域。高く険しい山脈・火山・地震。石油・銅など']};
 const CROP_RULE={
- wheat:[(c)=>c.Ta>=1&&c.Ta<=18&&c.Pa>=300&&c.Pa<=1000&&c.Tx>=14&&c.Tn<18,'冷涼〜温暖で、年降水量500〜1000mmくらいのやや乾燥した地域。ステップ（BS）の湿った側から、Cfb・Dfの平原が適地。収穫期に乾燥する土地が向く。'],
+ wheat:[(c)=>(c.Ta>=1&&c.Ta<=18&&c.Pa>=180&&c.Pa<=1000&&c.Tx>=14&&c.Tn<18)||(c.irrig&&c.Tn<17),'冷涼〜温暖で、年降水量500〜1000mmくらいのやや乾燥した地域。ステップ（BS）の湿った側から、Cfb・Dfの平原が適地。インドやパキスタンのパンジャブ地方では、乾燥地でも川の水を引いて（灌漑）冬に作る。'],
  corn:[(c)=>c.Tx>=20&&c.Pa>=500&&c.Pa<=2000,'夏に気温が高く（20℃以上）、雨が降る地域。Cfa・Dfa・Cwのほか、アフリカでは主食としてサバナでも広く作られる。'],
  potato:[(c)=>c.Tx>=13&&c.Tx<=22&&c.Pa>=400&&c.Tn<10,'冷涼な気候を好み、夏が涼しい地域（Cfb・Df）で多い。寒くやせた土地でも育つので、北ヨーロッパやロシアで主食級。'],
  beet:[(c)=>c.Tx>=15&&c.Tx<=22&&c.Pa>=450&&c.Pa<=1000&&c.Tn<6,'冷涼な地域の砂糖の原料（Cfb・Df）。熱帯のさとうきびに対し、ヨーロッパ・ロシアではてんさいで砂糖を作る。'],
- grape:[(c)=>c.K.startsWith('Cs')||(c.Tx>=17&&c.Ta>=9&&c.Pa<=900&&c.Tn>-6&&c.K[0]!=='B'),'夏に乾燥して日照が多い地中海性気候（Cs）が最適。温暖なCfbの南向き斜面（フランス・ドイツのライン川沿い）でも栽培。'],
+ grape:[(c)=>c.K.startsWith('Cs')||(c.irrig&&c.Tx>=20&&c.Tn>0)||(c.Tx>=17&&c.Ta>=9&&c.Pa<=900&&c.Tn>-6&&c.K[0]!=='B'),'夏に乾燥して日照が多い地中海性気候（Cs）が最適。温暖なCfbの南向き斜面（フランス・ドイツのライン川沿い）でも栽培。'],
  olive:[(c)=>c.K.startsWith('Cs'),'地中海性気候（Cs）の代表的な樹木作物。夏の乾燥に強く、冬の雨で育つ。地中海沿岸の分布＝Csの分布と考えてよい。'],
- citrus:[(c)=>c.Tn>=6.5&&c.Tn<18&&c.Ta>=15&&c.Ta<=22&&(c.K[0]==='C'||c.K.startsWith('BS')),'冬も温暖で霜がほとんどない地域。地中海性気候（Cs）の夏の乾燥にも強い（スペインのバレンシアなど）。'],
+ citrus:[(c)=>c.Tn>=6.5&&c.Tn<18&&c.Ta>=15&&c.Ta<=24&&(c.K[0]==='C'||c.K.startsWith('BS')),'冬も温暖で霜がほとんどない地域。地中海性気候（Cs）の夏の乾燥にも強い（スペインのバレンシアなど）。'],
  sunflower:[(c)=>c.Tx>=19&&c.Pa>=350&&c.Pa<=750&&c.Tn<5,'夏が暑く、やや乾燥した草原（BSとDfaの境目）。ウクライナ・ロシア南部の黒土（チェルノーゼム）地帯で多い。'],
- coffee:[(c)=>c.Ta>=16&&c.Ta<=25&&c.Tn>=12&&c.Pa>=1000,'熱帯の高原（標高1000〜2000m）で、雨季と乾季がある地域（Aw・Cwの高地）。暑すぎず霜も降りない。エチオピアが原産地。'],
+ coffee:[(c)=>c.Ta>=16&&c.Ta<=25&&c.Tn>=12&&c.Pa>=800,'熱帯の高原（標高1000〜2000m）で、雨季と乾季がある地域（Aw・Cwの高地）。暑すぎず霜も降りない。エチオピアが原産地。'],
  cacao:[(c)=>c.Ta>=24&&c.Pa>=1400,'年中高温多雨（年平均24℃以上・年降水量1500mm前後以上）のAf・Amの低地。ギニア湾岸（コートジボワール・ガーナ）に集中。'],
  palm:[(c)=>c.Ta>=24&&c.Pa>=1700,'年中高温多雨のAf・Amの低地。パーム油の原料。西アフリカが原産で、今はマレーシア・インドネシアが大産地。'],
  peanut:[(c)=>c.Ta>=22&&c.Pa>=400&&c.Pa<=1300,'高温で、生育期に適度な雨がある地域（年500〜1200mm）。サバナ（Aw）やステップ（BSh）の湿った側（セネガル・ナイジェリア北部）。'],
- tea:[(c)=>c.Ta>=14&&c.Ta<=24&&c.Pa>=1200&&c.Tn>=3,'高温多雨で水はけのよい斜面。熱帯では涼しい高原で作る（ケニアの高原）。'],
- cotton:[(c)=>(c.nile&&c.Tx>=23)||(c.Tx>=25&&c.Tn>=5&&c.Pa>=400&&c.Pa<=1300),'生育期に高温で、霜のない期間が長く、収穫期に乾燥する地域。乾燥地でも川の水で灌漑して作る（エジプトのナイル川、スーダン）。'],
+ tea:[(c)=>c.Ta>=12.5&&c.Ta<=24&&c.Pa>=1200&&c.Tn>=1&&c.Tx>=21,'高温多雨で水はけのよい斜面。熱帯では涼しい高原で作る（ケニアの高原）。'],
+ cotton:[(c)=>(c.nile&&c.Tx>=23)||(c.irrig&&c.Tx>=20)||(c.Tx>=25&&c.Tn>=-5&&c.Pa>=400&&c.Pa<=1300),'生育期に高温で、霜のない期間が長く、収穫期に乾燥する地域。乾燥地でも大河の水で灌漑して作る（ナイル川、インダス川、アムダリア川・シルダリア川、ティグリス・ユーフラテス川）。'],
  date:[(c)=>c.K==='BWh','高温乾燥の砂漠（BWh）のオアシスで栽培。地下水や川の水を使う。'],
- cane:[(c)=>c.Ta>=19&&c.Pa>=1000,'高温多雨（年平均20℃以上）の熱帯〜亜熱帯。冷涼地のてんさいと対になる砂糖作物。'],
+ cane:[(c)=>c.Ta>=19&&(c.Pa>=800||c.irrig),'高温多雨（年平均20℃以上）の熱帯〜亜熱帯。冷涼地のてんさいと対になる砂糖作物。'],
  vanilla:[(c)=>c.Ta>=23&&c.Pa>=1800,'年中高温多雨の熱帯（Af）。マダガスカルが世界最大の産地。'],
- dairy:[(c)=>c.Tx>=13&&c.Tx<=20&&c.Pa>=600,'冷涼で湿潤、牧草がよく育つ地域（Cfb・Df）。夏が涼しく穀物栽培に不利な土地や、大都市の近く。'],
- sheep:[(c)=>c.K.startsWith('BS')||((c.K==='Cfb'||c.K==='Cfc')&&c.Tx<17),'乾燥した草原（ステップ・BS）や、冷涼で穀物が育ちにくい丘陵地（イギリスのウェールズ・スコットランドなど）。南アフリカのカルー、オーストラリア内陸も。'],
+ dairy:[(c)=>c.Tx>=13&&c.Tx<=23.5&&c.Pa>=600&&c.Tn<5,'冷涼で湿潤、牧草がよく育つ地域（Cfb・Df）。夏が涼しく穀物栽培に不利な土地や、大都市の近く。'],
+ sheep:[(c)=>c.K.startsWith('BS')||(c.K.startsWith('BW')&&(c.Pa>=120||c.Ta<10))||((c.K==='Cfb'||c.K==='Cfc')&&c.Tx<17),'乾燥した草原（ステップ・BS）や、冷涼で穀物が育ちにくい丘陵地（イギリスのウェールズ・スコットランドなど）。南アフリカのカルー、オーストラリア内陸も。'],
  reindeer:[(c)=>c.K==='ET'||(c.K[0]==='D'&&c.Tx<14),'ツンドラ（ET）とその周辺で、トナカイを遊牧する。作物はほぼ育たない。'],
- forest:[(c)=>c.K[0]==='D'&&c.Tx<19,'亜寒帯（Df・Dw）のタイガ。針葉樹林が広がり、木材やパルプの生産が盛ん。'],
- rubber:[(c)=>c.Ta>=24&&c.Pa>=1800,'年中高温多雨の熱帯（Af）。天然ゴムの原産地は南アメリカのアマゾン。']
+ forest:[(c)=>(c.K[0]==='D'&&c.Tx<20.5)||(c.K.startsWith('Cf')&&c.Pa>=850&&c.Tx<22&&c.lon<-115),'亜寒帯（Df・Dw）のタイガ。針葉樹林が広がり、木材やパルプの生産が盛ん。'],
+ rubber:[(c)=>c.Ta>=24&&c.Pa>=1500,'年中高温多雨の熱帯（Af）。原産地は南アメリカのアマゾンだが、今はタイ・インドネシア・マレーシアなど東南アジアが大産地。'],
+ rice:[(c)=>(c.Tx>=22&&c.Pa>=800&&(c.K[0]==='A'||c.K[0]==='C'))||(c.irrig&&c.Tx>=24),'夏に高温で雨が多い地域（夏の気温22℃以上・年降水量1000mm前後以上）。モンスーンアジアの川沿いの平野やデルタ（三角州）で水田が広がる。雨が少なくても大河の水を引けば作れる。'],
+ soy:[(c)=>c.Tx>=21&&c.Pa>=450&&c.Pa<=1800,'夏が高温で適度に雨が降る地域（Cfa・Dfa・Cwなど）。アメリカのコーンベルト、ブラジル中西部、アルゼンチンのパンパ、中国東北部。'],
+ banana:[(c)=>c.Tn>=18&&c.Pa>=1200,'年中高温で雨が多く、霜が降りない熱帯（A）。エクアドル・中米・フィリピンで輸出用のプランテーション。'],
+ cattle:[(c)=>c.K.startsWith('BS')||c.K==='Aw'||(c.K==='Cfa'&&c.Pa<1100)||(c.K.startsWith('BW')&&c.Pa>=150),'乾燥〜半乾燥の草原やサバナ（BS・Aw）の広い牧場で放牧する。グレートプレーンズ、パンパ、オーストラリア北部など。'],
+ jute:[(c)=>c.Ta>=23&&c.Pa>=1500&&c.Tn<22,'高温多雨の低地で、洪水でたまった肥えた土が向く。ガンジス川下流のデルタ（バングラデシュ・インド西ベンガル）に集中。袋や麻ひもの原料。']
 };
 const MINE_RULE={
  oil:[0,'地層がたまった大きな堆積盆地や、新期造山帯のまわりの地層が曲がった構造にたまりやすい。ニジェール川河口・北海・西シベリア・ペルシア湾岸など。'],
@@ -738,33 +780,43 @@ const MINE_RULE={
  al:[0,'高温多雨の熱帯で岩石が風化してできた赤い土（ラテライト）に含まれる。ギニアは世界有数の産地。ギリシャ・ハンガリーのものは昔の熱帯でできたもの。'],
  p:[0,'昔の海の底にたまった堆積物。モロッコ（と西サハラ）は世界最大の埋蔵量。肥料の原料。'],
  mn:[1,'安定陸塊の古い地層に多い。南アフリカ（カラハリ）が最大の産地。'],
- k:[0,'昔の海が干上がってできた岩塩層に含まれる。ベラルーシ・ロシア・カナダが大産地。肥料の原料。']
+ k:[0,'昔の海が干上がってできた岩塩層に含まれる。ベラルーシ・ロシア・カナダが大産地。肥料の原料。'],
+ sn:[0,'花こう岩に伴ってでき、川の砂にたまった「漂砂鉱床」で取れることが多い。マレーシア・インドネシア（バンカ島）、ボリビアのアンデス。'],
+ ag:[3,'新期造山帯の火山活動に伴ってできる鉱床に多い。メキシコとペルーが世界の二大産地。'],
+ w:[0,'花こう岩に伴ってできる。中国が世界の生産の大半を占めるレアメタル。'],
+ ree:[0,'中国の内モンゴル（バヤンオボー）が世界最大の産地。ハイテク製品に欠かせないレアメタル。'],
+ li:[0,'アンデス山脈の高地にある乾燥した塩湖（ウユニ塩湖・アタカマ塩湖）の塩水や、オーストラリアの岩石から取れる。電池の原料。']
 };
+const IRRIG=[[[32.5,15.5],[33,19],[31.5,22],[32.8,25.5],[31.2,30],[31,31.5]],[[73,33.5],[72,30],[70,27.5],[68.3,25],[67.5,24]],[[75,31.8],[76,30.5],[74,29.8],[72.5,29.5]],[[77.5,29.8],[80,27],[83,25.5]],
+ [[69,37.2],[65,38.5],[62,40.5],[60.5,42],[59.5,43.5]],[[71.5,40.8],[68.5,41],[66,44],[62,46]],[[67.5,39.6],[64.4,39.8]],[[63,37.5],[61.5,37.8],[58.4,38],[56,38.5]],[[75.9,39.5],[80,41.2],[84,41.6],[88,42.8]],
+ [[38.5,37.3],[40.5,36],[42,35],[44,33.3],[46.5,31],[48,30.4]],[[43,36.3],[44.4,33.3]],[[80.6,16.2],[81.8,16.9]],[[-68.8,-33.2],[-68.5,-31.5]],[[-115.5,32.8],[-114.6,33.4]]];
+function irrigAt(lon,lat){for(const pl of IRRIG){if(polyDist(lon,lat,pl)<0.9)return true}return false}
 let SEL=null;
-function cellStats(i){const T=cur.TT.slice(i*12,i*12+12),P=cur.PP.slice(i*12,i*12+12);let Ta=0,Pa=0,Tx=-99,Tn=99,Pm=1e9;for(let m=0;m<12;m++){Ta+=T[m];Pa+=P[m];Tx=Math.max(Tx,T[m]);Tn=Math.min(Tn,T[m]);Pm=Math.min(Pm,P[m])}const lon=cur.reg.L0+(i%cur.GW)/R,lat=cur.reg.T0-Math.floor(i/cur.GW)/R;return{Ta:Ta/12,Pa,Tx,Tn,Pmin:Pm,K:cur.KK[i],H:cur.HH[i],nile:cur.key==='africa'&&lon>30&&lon<33.8&&lat>14&&lat<31.6&&Math.abs(lon-(lat>24?31.2:32.5))<1.2}}
-function tectArr(){if(!cur.TECT&&TECT[cur.key]){const t=new Uint8Array(cur.ALL.length);for(let i=0;i<t.length;i++){if(!cur.FOC[i])continue;t[i]=TECT[cur.key](cur.reg.L0+(i%cur.GW)/R,cur.reg.T0-Math.floor(i/cur.GW)/R)}cur.TECT=t}return cur.TECT}
+function cellStats(i){const T=cur.TT.slice(i*12,i*12+12),P=cur.PP.slice(i*12,i*12+12);let Ta=0,Pa=0,Tx=-99,Tn=99,Pm=1e9;for(let m=0;m<12;m++){Ta+=T[m];Pa+=P[m];Tx=Math.max(Tx,T[m]);Tn=Math.min(Tn,T[m]);Pm=Math.min(Pm,P[m])}const lon=cur.reg.L0+(i%cur.GW)/R,lat=cur.reg.T0-Math.floor(i/cur.GW)/R;const B=cur.KK[i][0]==='B';return{lon,lat,irrig:B&&irrigAt(lon,lat),Ta:Ta/12,Pa,Tx,Tn,Pmin:Pm,K:cur.KK[i],H:cur.HH[i],nile:(cur.key==='africa'||cur.key==='world')&&lon>30&&lon<33.8&&lat>14&&lat<31.6&&Math.abs(lon-(lat>24?31.2:32.5))<1.2}}
+function tectArr(){if(cur.TECT)return cur.TECT;const isW=cur.key==='world';if(!isW&&!TECT[cur.key])return null;const t=new Uint8Array(cur.ALL.length);for(let i=0;i<t.length;i++){if(!cur.FOC[i])continue;const key=isW?SUBKEYS[cur.RIDX[i]-1]:cur.key;if(!TECT[key])continue;let lon=cur.reg.L0+(i%cur.GW)/R;const lat=cur.reg.T0-Math.floor(i/cur.GW)/R;if(key==='russia'&&lon<0)lon+=360;t[i]=TECT[key](lon,lat)}cur.TECT=t;return t}
 function selMask(){if(!SEL||!cur)return null;const N=cur.ALL.length,m=new Uint8Array(N);
   if(SEL.mine){const tt=MINE_RULE[SEL.kind][0];if(!tt)return null;const t=tectArr();if(!t)return null;for(let i=0;i<N;i++)m[i]=t[i]===tt?1:0;return m}
   const f=CROP_RULE[SEL.kind][0];for(let i=0;i<N;i++){if(!cur.FOC[i])continue;m[i]=f(cellStats(i))?1:0}return m}
 function selectProduct(kind,isMine){if(SEL&&SEL.kind===kind&&SEL.mine===isMine){clearSel();return}
   SEL={kind,mine:isMine};SEL.mask=selMask();
-  document.querySelectorAll('#ovlabels .pd').forEach(el=>{const on=el.dataset.kind===kind&&el.dataset.mine===String(isMine);el.classList.toggle('open',on);el.innerHTML=badgeInner(el.dataset.kind,el.dataset.mine==='true',18)+(on?'<span class="pdn">'+el.dataset.name+'</span>':'')});
+  document.querySelectorAll('#ovlabels .pd').forEach(el=>{const on=el.dataset.kind===kind&&el.dataset.mine===String(isMine);el.classList.toggle('open',on);el.innerHTML=badgeInner(el.dataset.kind,el.dataset.mine==='true',PD_SIZE)+(on?'<span class="pdn">'+el.dataset.name+'</span>':'')});
   const name=isMine?MN_KIND[kind][1]:AG_KIND[kind],text=isMine?MINE_RULE[kind][1]:CROP_RULE[kind][1];
   const tt=isMine?MINE_RULE[kind][0]:0;
-  const note=SEL.mask?(isMine?`地図では「${TECT_NAME[tt][0]}」を光らせています。`:'地図では、このページの気温・降水量の計算から条件に合う場所を光らせています。'):'この鉱産物は地体構造だけでは決まらないので、地図は光らせていません。';
+  const irrNote=(!isMine&&['wheat','cotton','rice','grape','cane'].includes(kind))?'川の水で灌漑できる乾燥地の大河沿い（ナイル川・インダス川・アムダリア川など）も含めています。':'';
+  const note=SEL.mask?(isMine?`地図では「${TECT_NAME[tt][0]}」を光らせています。`:'地図では、このページの気温・降水量の計算から条件に合う場所を光らせています。'+irrNote):'この鉱産物は地体構造だけでは決まらないので、地図は光らせていません。';
   const box=document.getElementById('info');box.innerHTML=`<div class="ih"><span class="${badgeClass(kind,isMine)}" style="${badgeStyle(kind,isMine)}">${badgeInner(kind,isMine,22)}</span><b>${name}</b><button type="button" id="info-close">解除</button></div><p>${text}</p><p class="in">${note}</p>`;box.hidden=false;
   document.getElementById('info-close').onclick=clearSel;recolor()}
-function clearSel(){SEL=null;document.getElementById('info').hidden=true;document.querySelectorAll('#ovlabels .pd.open').forEach(el=>{el.classList.remove('open');el.innerHTML=badgeInner(el.dataset.kind,el.dataset.mine==='true',18)});recolor()}
+function clearSel(){SEL=null;document.getElementById('info').hidden=true;document.querySelectorAll('#ovlabels .pd.open').forEach(el=>{el.classList.remove('open');el.innerHTML=badgeInner(el.dataset.kind,el.dataset.mine==='true',PD_SIZE)});recolor()}
 
 function buildOverlays(){while(ovGroup.children.length){const o=ovGroup.children[0];ovGroup.remove(o);o.geometry&&o.geometry.dispose()}ovLabelsEl.innerHTML='';ovLabels=[];
   const list=document.getElementById('localwinds');list.innerHTML='';list.hidden=true;document.getElementById('productlegend').hidden=true;
   if(!cur)return;const reg=cur.reg,S=regS(reg),r=S*0.0035,xs=reg.xs||1;
-  if(OV.winds){const step=Math.max(4,Math.round(S/11));
+  if(OV.winds){const step=Math.min(15,Math.max(4,Math.round(S/11)));
     for(let lat=reg.T0-step/2;lat>reg.T1;lat-=step)for(let lon=reg.L0+step/2/xs;lon<reg.L1;lon+=step/xs){const [u,v]=windAt(lat,month),mag=Math.hypot(u,v);if(mag<0.25)continue;
       const len=step*0.38,dl=u/mag*len/xs*0.5,dt=v/mag*len*0.5,y=hAtLL(lon,lat)+S*0.012;
       const [x1,z1]=toXZ(reg,lon-dl,lat-dt),[x2,z2]=toXZ(reg,lon+dl,lat+dt);
       arrowTube([new THREE.Vector3(x1,y,z1),new THREE.Vector3((x1+x2)/2,y,(z1+z2)/2),new THREE.Vector3(x2,y,z2)],0x1E2A30,r*0.75*mag,0.8)}}
-  if(OV.monsoon){const step=Math.max(4,Math.round(S/11));const done=new Set();
+  if(OV.monsoon){const step=Math.min(15,Math.max(4,Math.round(S/11)));const done=new Set();
     for(let lat=reg.T0-step;lat>reg.T1;lat-=step)for(let lon=reg.L0+step/xs;lon<reg.L1;lon+=step/xs){const [u,v]=monsoonAt(lon,lat,month),mag=Math.hypot(u,v);if(mag<0.3)continue;
       const len=step*0.45,dl=u/mag*len/xs*0.5,dt=v/mag*len*0.5,y=hAtLL(lon,lat)+S*0.02;
       const [x1,z1]=toXZ(reg,lon-dl,lat-dt),[x2,z2]=toXZ(reg,lon+dl,lat+dt);
@@ -787,15 +839,16 @@ function showRegion(key){key=ALIAS[key]||key;if(!REGIONS[key])key=DEFAULT_REGION
   if(!world)return;
   statusEl.hidden=false;statusEl.textContent='計算中…';
   setTimeout(()=>{try{
+    R=REGIONS[key].Rres||4;
     while(group3.children.length)group3.remove(group3.children[0]);labelsEl.innerHTML='';pins=[];
     cur=compute(key);const reg=cur.reg;group3.add(cur.mesh);
-    const hasPd=PRODUCT_REGIONS.has(key);document.getElementById('ov-agri').hidden=!hasPd;document.getElementById('ov-mine').hidden=!hasPd;document.getElementById('m-tect').hidden=!hasPd;
-    SEL=null;document.getElementById('info').hidden=true;if(mode==='tect'&&!hasPd){mode='koppen';document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode==='koppen'))}
+    const hasPd=PRODUCT_REGIONS.has(key);document.getElementById('ov-agri').hidden=!hasPd;document.getElementById('ov-mine').hidden=!hasPd;document.getElementById('m-tect').hidden=!(TECT[key]||key==='world');
+    SEL=null;document.getElementById('info').hidden=true;if(mode==='tect'&&!(TECT[key]||key==='world')){mode='koppen';document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode==='koppen'))}
     reg.pins.forEach(p=>{const i=idx(p[1],p[2]),[x,z]=toXZ(reg,p[1],p[2]),y=Math.max(0,i<0?0:cur.HH[i])*reg.EX;
       const s=new THREE.Mesh(new THREE.SphereGeometry(0.45,14,10),new THREE.MeshBasicMaterial({color:0x2C2C2A}));s.position.set(x,y+0.9,z);s.visible=showPins;group3.add(s);
       const el=document.createElement('span');el.textContent=p[0];labelsEl.appendChild(el);pins.push([s.position,el,s])});
     marker=new THREE.Mesh(new THREE.ConeGeometry(0.55,1.5,12),new THREE.MeshBasicMaterial({color:0xD85A30}));marker.rotation.x=Math.PI;marker.visible=false;group3.add(marker);
-    if(reg.cam){cam.position.set(...reg.cam);ctl.target.set(...reg.target)}else{const S=Math.max((reg.L1-reg.L0)*(reg.xs||1)*0.75,reg.T0-reg.T1);cam.position.set(0,0.95*S,1.05*S);ctl.target.set(0,0,S*0.03)}ctl.update();
+    ctl.maxDistance=Math.max(150,Math.max((reg.L1-reg.L0)*(reg.xs||1),reg.T0-reg.T1)*2);if(reg.cam){cam.position.set(...reg.cam);ctl.target.set(...reg.target)}else{const S=Math.max((reg.L1-reg.L0)*(reg.xs||1)*0.75,reg.T0-reg.T1);cam.position.set(0,0.95*S,1.05*S);ctl.target.set(0,0,S*0.03)}ctl.update();
     recolor();probe(...reg.start);buildOverlays();statusEl.hidden=true}catch(e){statusEl.textContent='計算に失敗しました：'+e.message}},30)}
 
 const regionsEl=document.getElementById('regions');REGION_LIST.forEach(([k,label])=>{const b=document.createElement('button');b.id='r-'+k;b.dataset.region=k;b.textContent=label;b.setAttribute('aria-pressed','false');regionsEl.appendChild(b)});
@@ -825,7 +878,11 @@ function cullLabels(){const placed=[];
   pins.forEach(([p,el])=>{if(el.hidden)return;const x=parseFloat(el.style.left),y=parseFloat(el.style.top),w=el.offsetWidth,h=el.offsetHeight;placed.push([x-w/2,y-1.5*h,x+w/2,y-0.5*h])});
   ovLabels.filter(([p,el])=>el.tagName==='SPAN').map(([p,el])=>el).sort((a,b)=>(PRI[a.className.split(' ')[1]]??3)-(PRI[b.className.split(' ')[1]]??3)).forEach(el=>{
     if(el.hidden)return;const x=parseFloat(el.style.left),y=parseFloat(el.style.top),w=el.offsetWidth+4,h=el.offsetHeight+2,r=[x-w/2,y-h/2,x+w/2,y+h/2];
-    const hit=placed.some(q=>r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1]);el.style.visibility=hit?'hidden':'visible';if(!hit)placed.push(r)})}
+    const hit=placed.some(q=>r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1]);el.style.visibility=hit?'hidden':'visible';if(!hit)placed.push(r)});
+  if(cur&&cur.key==='world')ovLabels.forEach(([p,el])=>{if(el.tagName!=='BUTTON'||el.hidden)return;if(el.classList.contains('open')){el.style.visibility='visible';return}
+    const x=parseFloat(el.style.left),y=parseFloat(el.style.top),w=el.offsetWidth,h=el.offsetHeight,r=[x-w/2,y-h/2,x+w/2,y+h/2];
+    const hit=placed.some(q=>r[0]<q[2]&&r[2]>q[0]&&r[1]<q[3]&&r[3]>q[1]);el.style.visibility=hit?'hidden':'visible';if(!hit)placed.push(r)});
+  else ovLabels.forEach(([p,el])=>{if(el.tagName==='BUTTON')el.style.visibility='visible'})}
 loop();
 new ResizeObserver(()=>{W=stage.clientWidth;H=stage.clientHeight;ren.setSize(W,H);cam.aspect=W/H;cam.updateProjectionMatrix()}).observe(stage);
 const mq=window.matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',()=>{if(cur&&selected)probe(...selected)});
