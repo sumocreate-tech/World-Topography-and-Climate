@@ -494,7 +494,7 @@ function recolor(){if(!cur)return;const col=cur.geo.attributes.color.array,N=cur
 
 function drawLegend(){const L=document.getElementById('legend');let h='';
   if(mode==='koppen')h=GROUPS.filter(x=>cur.used.has(x[0])).map(x=>`<span><i style="background:${x[2]}"></i><b>${x[0]}</b>${x[1]}</span>`).join('');
-  else if(mode==='tect')h=[1,2,3].map(t=>`<span><i style="background:${TECT_NAME[t][1]}"></i><b>${TECT_NAME[t][0]}</b>${TECT_NAME[t][2]}</span>`).join('')+'<span style="color:var(--muted)">※西シベリア低地や東シベリアの山地など、教科書によって区分が違う地域があります。地体構造の塗り分けはアフリカ・ヨーロッパ・ロシアのみ（世界地図ではそれ以外は灰色）</span>';
+  else if(mode==='tect')h=(cur.key==='europe'||cur.key==='world'?[1,2,3,4]:[1,2,3]).map(t=>`<span><i style="background:${TECT_NAME[t][1]}"></i><b>${TECT_NAME[t][0]}</b>${TECT_NAME[t][2]}</span>`).join('')+'<span style="color:var(--muted)">※西シベリア低地や東シベリアの山地など、教科書によって区分が違う地域があります。地体構造の塗り分けはアフリカ・ヨーロッパ・ロシアのみ（世界地図ではそれ以外は灰色）</span>';
   else if(mode==='terrain')h=[['低地',0],['〜800m',500],['〜1800m',1300],['〜3200m',2500],['4000m〜',4300]].map(a=>`<span><i style="background:rgb(${reliefColor(a[1]).map(Math.round)})"></i>${a[0]}</span>`).join('');
   else if(mode==='temp')h=[-5,5,15,25,35].map(t=>`<span><i style="background:rgb(${tempColor(t)})"></i>${t}℃</span>`).join('')+'<span>（'+(month+1)+'月の平均気温）</span>';
   else h=[0,25,100,200,400].map(p=>`<span><i style="background:rgb(${precColor(p)})"></i>${p}mm</span>`).join('')+'<span>（'+(month+1)+'月の降水量）</span>';
@@ -720,7 +720,6 @@ const RU_PINK=[[123,73],[200,73],[200,48],[137,48],[134,43],[130,42.5],[131,46],
 const RU_PURPLE=[
  [[78,50],[81,57],[88,57],[96,56.5],[105,57],[112,58.5],[118,58.5],[122,57.5],[128,56],[134,54],[134,48],[120,49.5],[110,49],[98,50],[90,47.5],[84,47]],
  [[76,77],[100,78],[103,74],[95,72],[92,68],[88,63],[85.5,61],[83.5,66],[80,70]]];
-const ES_PINK=[[-2,43.3],[3.5,42.7],[3.2,41.3],[0.8,39],[-0.5,38.3],[-2,37.3],[-5.5,36.3],[-6.5,36.9],[-4.5,38],[-2.5,39],[-1,41],[-1.5,42.3]];
 const ES_MESETA=[[-7.5,42],[-3,42],[-3,40],[-3.5,38.8],[-6,38.5],[-7.3,40]];
 const EU_STABLE=[
  [[-5,48.7],[-1.5,50],[2,51.2],[8,54.8],[8.5,53],[7,51],[6,49.5],[3,47.5],[1.5,46.2],[-0.8,46.5],[-1.5,47.8]],
@@ -731,32 +730,22 @@ const EU_STABLE=[
 ];
 const AF_ATLAS=[[-9.5,31],[-5,32.5],[-1,34.3],[3,35.7],[8,36.4],[10.5,36.9]];
 const AF_MOROCCO=[[-13.8,35],[-6,34.2],[-4.2,32],[-3.2,29.5],[-8.5,27.8],[-13,27.5]];
+// ヨーロッパの地体構造：教科書の地図（新期・古期造山帯、安定陸塊）の色を0.25度の格子に読み取ったもの（左上が西経25度・北緯72度）。a=安定陸塊 b=古期造山帯 c=新期造山帯
+const EU_TECT_ROWS="b187a93,b189a91,b190a90,b192a88,b193a87,b194a86,b194a86,b194a86,b194a86,b173a7b10a90,b168a112,b167a113,b167a113,b166a114,b166a114,b166a114,b166a114,b165a115,b164a116,b162a118,b160a120,b159a121,b156a124,b155a125,c2b154a124,c5b151a124,c8b149a123,c12b145a123,c14b143a123,c17b139a124,c19b135a126,c21b132a127,c24b128a128,c25b126a129,c27b125a128,c29b123a128,c31b120a129,c32b117a131,c34b113a133,c35b111a134,c36b110a134,c38b107a135,c39b104a137,c40b102a138,c41b100a139,c42b99a139,c43b99a138,c44b97a139,c45b96a139,c46b95a139,c46b96a138,c47b95a138,c48b95a137,c44b99a137,c41b102a137,c38b104a138,c35b107a138,c32b109a139,c29b112a139,c26b23a1b86a144,c23b22a5b79a151,c20b20a10b73a157,c17b18a14b69a162,c16b15a18b66a165,c15b12a21b66a166,c14b9a25b67a165,c14b6a27b68a165,c13b6a28b69a164,c13b5a28b71a163,c12b5a29b72a162,c11b5a29b73a162,c11b4a30b73a162,c10b4a30b74a162,c9b5a30b74a162,c9b4a30b75a162,c8b4a30b76a162,c7b5a29b76a163,c7b4a28b76a165,c6b4a28b76a166,c5b5a27b75a168,c5b4a27b75a59b2a108,c4b4a27b73a61b4a107,c3b5a26b73a57b11a105,c3b4a26b73a54b1a1b18a100,c2b4a26b73a52b23a100,c2b4a25b73a20b2a28b27a7c6a86,c1b4a26b73a19b5a26b28a4c10a2c6a76,b4a26b73a18b10a22b30c22a75,b4a25b75a16b13a20b29c24a74,b3a26b76a12b16a21b26c27a73,b2a26b79a8b18a21b21c33a72,b2a25b82a4b20a21b20c34a72,b1a24b84a4b20a22b18c35a72,a22b84a9b18a22b16c18a4c14a73,a19b85a12b16a25b13c15a9c12a74,a16b86a15b19a24c3b4c16a11c11a75,a13b87a18b20a21c23a12c11a75,a11b89a19b19a16c27a13c12a74,a9b90a20b20a9c32a14c13a73,a7b93a19b21a8c32a15c13a72,a5b95a19b22a4c33a17c12a73,a3b97a19b22c36a18c11a74,a1b99a19b22c36a18c10a75,b99a19b21c37a18c11a75,b94a24b18c41a15c12a76,b90a28b16c43a11c16a76,b88a30b16c44a8c19a75,b89a28b17c46a5c22a73,b89a27b18c48a2c26a8c7a55,b91a24b19c80a2c21a43,b92a22b20c108a38,b93a20b22c112a33,b94c5a13b23c117a28,b94c9a9b24c61b1c59a23,b94c14a3b27c55b5c64a18,b95c19b25c53b6c69a13,b96c20b25c51b6c74a8,b97c21b24c49b8c78a3,b75a3b20c21b24c48b9c80,b74a5b18c23b24c47b9c80,b74a6b17c23b24c48b8c80,b74a6b17c24b24c47b7c81,b74a7b17c23b24c48b6c81,b74a7b18c22b25c48b5c81,b75a7b18c22b25c49b3c81,b75a7b18c23b25c49b1c82,b75a10b16c22b25c59a4c69,b76a10b16c21b26c58a6c67,b76a11b17c19b27c56a9b2c63,b77a10b18c18b27c53b3a8b4c62,b77a10b20c15b29c46b10a3b8c62,b78a8b22c14b29c46b21c62,b79a6b25c12b28c47b21c62,b80a6b27c8b29c47b21c62,b82a6b29c4b28c49b20c62,b81a9b59c49b20c62,b81a11b56c51b19c62,b81a12b54c52b18c63,b81a12b54c52b18c63,b82a12b52c54b17c63,b82a13b51c55b15c64,b83a13b50c55b15c64,b84a13b48c56b14c65,b84a14b47c56b14c65,b85a14b45c57b14c65,b85a15b44c57b14c65,b86a15b43c57b14c65,b86a16b41c58b14c65,b86a17b40c58b14c65,b87a17b39c58b14c65,b87a18b38c58b14c65,b88a18b37c58b13c66".split(',');
+let EU_TECT_G=null;
+function euTect(lon,lat){if(!EU_TECT_G)EU_TECT_G=EU_TECT_ROWS.map(r=>{const a=[];r.replace(/([abc])(\d+)/g,(m,c,n)=>{const v='abc'.indexOf(c)+1;for(let i=0;i<+n;i++)a.push(v);return ''});return a});
+  const x=Math.max(0,Math.min(279,Math.floor((lon+25)/0.25))),y=Math.max(0,Math.min(151,Math.floor((72-lat)/0.25)));return EU_TECT_G[y][x]||2}
 const TECT={
  africa(lon,lat){if(polyDist(lon,lat,AF_ATLAS)<2.2||(lat>34.5&&lon<-1&&lon>-6)||(lat>35&&lon>-1&&lon<11.5))return 3;
    if(inPoly(lon,lat,AF_MOROCCO))return 2;
    if(lat<-32.6&&lon<27)return 2;if(polyDist(lon,lat,[[27,-33],[28.5,-31],[29.3,-29.5],[30.5,-27],[31,-24.5]])<1.4)return 2;return 1},
- europe(lon,lat){if(lon<-12&&lat>62)return 3;
-   if(inPoly(lon,lat,ES_MESETA))return 1;if(inPoly(lon,lat,ES_PINK))return 3;
-   if(inPoly(lon,lat,EU_STABLE[2])||inPoly(lon,lat,EU_STABLE[1]))return 1;
-   for(let k=1;k<ALPINE.length;k++){if(k===1||k===2)continue;if(polyDist(lon,lat,ALPINE[k])<1.3)return 3}
-   if(lat<38.6&&lon>11.8&&lon<16&&lat>36.5)return 3;
-   if(lat>35&&lat<42.5&&lon>26&&lon<45)return 3;
-   if(inPoly(lon,lat,[[22,43.5],[24.5,43.5],[24.5,42],[22,42]]))return 2;
-   if(lon>8&&lon<11&&lat>38&&lat<43.5)return 2;
-   if(lat>57.5&&lon>lerpT(SCAN,lat)-1.8&&lon<lerpT(SCAN,lat)+1.6)return 2;
-   if(lat>58&&lon>lerpT(SCAN,Math.min(70,lat))+1.6)return 1;if(lat>60&&lon>21)return 1;
-   for(const p of EU_STABLE)if(inPoly(lon,lat,p))return 1;
-   const tl=lerpT(TORNQ,Math.max(45.5,Math.min(57.5,lat)));if(lat<57.5&&lon>tl&&lat>47.5)return 1;
-   if(lat<=47.5&&lon>26&&lat>44)return 1;
-   if(lat>=47.5&&lon>14&&lon<16.5&&lat<51)return 2;
-   if(lon>14.5&&lon<26&&lat>47.5&&lat<49.8)return 3;
-   return 2},
+ europe(lon,lat){if(lon<-12&&lat>62)return 4;return euTect(lon,lat)},
  russia(lon,lat){if(lat<45.5&&lon<50)return 3;if(inPoly(lon,lat,RU_PINK))return 3;
    const ural=lat>47&&lat<70?Math.abs(lon-(lat<61?59.3:59+(lat-61)*0.7)):99;if(ural<2.8||(lon>50&&lon<70&&lat>70))return 2;
    for(const p of RU_PURPLE)if(inPoly(lon,lat,p))return 2;
    return 1}
 };
-const TECT_NAME={1:['安定陸塊','#C9A24A','先カンブリア時代の古い岩盤。平原や台地が多い。鉄鉱石・金・ダイヤモンドなど'],2:['古期造山帯','#9B7BD0','古生代に山脈ができ、長い侵食でなだらかになった地域。石炭が多い'],3:['新期造山帯','#EE7FA8','中生代以降に山脈ができた地域。高く険しい山脈・火山・地震。石油・銅など']};
+const TECT_NAME={1:['安定陸塊','#C9A24A','先カンブリア時代の古い岩盤。平原や台地が多い。鉄鉱石・金・ダイヤモンドなど'],2:['古期造山帯','#9B7BD0','古生代に山脈ができ、長い侵食でなだらかになった地域。石炭が多い'],3:['新期造山帯','#EE7FA8','中生代以降に山脈ができた地域。高く険しい山脈・火山・地震。石油・銅など'],4:['造山帯ではない（火山島）','#6FA8B8','海嶺（プレートが広がる境界）にできた火山島。アイスランドなど。造山帯には入らない']};
 const CROP_RULE={
  wheat:[(c)=>(c.Ta>=1&&c.Ta<=18&&c.Pa>=180&&c.Pa<=1000&&c.Tx>=14&&c.Tn<18)||(c.irrig&&c.Tn<17),'冷涼〜温暖で、年降水量500〜1000mmくらいのやや乾燥した地域。ステップ（BS）の湿った側から、Cfb・Dfの平原が適地。インドやパキスタンのパンジャブ地方では、乾燥地でも川の水を引いて（灌漑）冬に作る。'],
  corn:[(c)=>c.Tx>=20&&c.Pa>=500&&c.Pa<=2000,'夏に気温が高く（20℃以上）、雨が降る地域。Cfa・Dfa・Cwのほか、アフリカでは主食としてサバナでも広く作られる。'],
