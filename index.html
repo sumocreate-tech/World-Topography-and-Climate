@@ -113,7 +113,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div id="labels"></div>
     <div id="ovlabels"></div>
     <p id="status">計算中…</p>
-    <p class="hint">ドラッグで回転・ピンチで拡大・タップで地点の雨温図</p>
+    <p class="hint">円を描くようにドラッグで回転・上下ドラッグで傾き・2本指（マウスは右ドラッグ）で移動・ピンチで拡大・タップで雨温図</p>
   </div>
   <div class="info" id="info" hidden></div>
   <div class="info" id="kinfo" hidden></div>
@@ -471,7 +471,23 @@ const stage=document.getElementById('stage'),statusEl=document.getElementById('s
 let W=stage.clientWidth,H=stage.clientHeight;
 const ren=new THREE.WebGLRenderer({antialias:true,alpha:true});ren.setPixelRatio(Math.min(2,window.devicePixelRatio||1));ren.setSize(W,H);stage.insertBefore(ren.domElement,stage.firstChild);
 const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(42,W/H,0.1,600);
-const ctl=new THREE.OrbitControls(cam,ren.domElement);ctl.enableDamping=true;ctl.maxPolarAngle=1.45;ctl.minDistance=12;ctl.maxDistance=150;
+const ctl=new THREE.OrbitControls(cam,ren.domElement);ctl.enableDamping=false;ctl.enableRotate=false;ctl.screenSpacePanning=false;ctl.maxPolarAngle=1.45;ctl.minDistance=12;ctl.maxDistance=150;
+// 回転は自前：画面上で地図の中心のまわりに円を描いた向きに、そのまま地図が回る（反時計回りに描けば反時計回り）。中心へ近づく／離れる上下の動きで傾ける。慣性なし。
+const TW={ptrs:new Map(),last:null};
+function twistCenter(){const p=ctl.target.clone().project(cam),rc=ren.domElement.getBoundingClientRect();return [rc.left+(p.x+1)/2*rc.width,rc.top+(1-p.y)/2*rc.height,rc.height]}
+ren.domElement.addEventListener('pointerdown',e=>{TW.ptrs.set(e.pointerId,1);TW.last=(TW.ptrs.size===1&&(e.pointerType!=='mouse'||e.button===0))?[e.clientX,e.clientY]:null});
+window.addEventListener('pointermove',e=>{if(!TW.last||TW.ptrs.size!==1||!TW.ptrs.has(e.pointerId))return;
+  const [cx,cy,hh]=twistCenter(),x0=TW.last[0]-cx,y0=TW.last[1]-cy,dx=e.clientX-TW.last[0],dy=e.clientY-TW.last[1];TW.last=[e.clientX,e.clientY];
+  const r2=x0*x0+y0*y0,r=Math.sqrt(r2);
+  const dTheta=(x0*dy-y0*dx)/Math.max(r2,90*90);           // 中心まわりに描いた角度
+  const tilt=r<90?dy:(dx*x0+dy*y0)/r*(y0/r);               // 中心に向かう／離れる動きの上下成分
+  const off=cam.position.clone().sub(ctl.target),sp=new THREE.Spherical().setFromVector3(off);
+  sp.theta+=dTheta;sp.phi=Math.max(0.05,Math.min(ctl.maxPolarAngle,sp.phi-2*Math.PI*tilt/hh*0.6));sp.makeSafe();
+  off.setFromSpherical(sp);cam.position.copy(ctl.target).add(off);cam.lookAt(ctl.target)});
+const twEnd=e=>{TW.ptrs.delete(e.pointerId);TW.last=null};window.addEventListener('pointerup',twEnd);window.addEventListener('pointercancel',twEnd);
+// 視点の中心（ターゲット）を地図の範囲内・海面の高さにとどめる（水平に近い視点で上下に動かしても遠くへ飛んでいかない）
+function clampView(){if(!cur)return;const reg=cur.reg,hx=(reg.L1-reg.L0)*(reg.xs||1)/2,hz=(reg.T0-reg.T1)/2,t=ctl.target;
+  const nx=Math.max(-hx,Math.min(hx,t.x)),nz=Math.max(-hz,Math.min(hz,t.z)),d=new THREE.Vector3(nx-t.x,-t.y,nz-t.z);if(d.lengthSq()>1e-9){t.add(d);cam.position.add(d)}}
 scene.add(new THREE.AmbientLight(0xffffff,0.6));const sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(-30,40,20);scene.add(sun);
 const group3=new THREE.Group();scene.add(group3);
 
@@ -1077,7 +1093,7 @@ ren.domElement.addEventListener('pointerup',e=>{if(!down||!cur)return;if(Math.hy
   const hit=ray.intersectObject(cur.mesh)[0];if(hit)probe(hit.point.x/(cur.reg.xs||1)+(cur.reg.L0+cur.reg.L1)/2,(cur.reg.T0+cur.reg.T1)/2-hit.point.z)});
 
 const v=new THREE.Vector3();
-function loop(){requestAnimationFrame(loop);ctl.update();ren.render(scene,cam);
+function loop(){requestAnimationFrame(loop);ctl.update();clampView();ren.render(scene,cam);
   pins.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=!showPins||v.z>=1});
   ovLabels.forEach(([p,el])=>{v.copy(p).project(cam);el.style.left=((v.x+1)/2*W)+'px';el.style.top=((1-v.y)/2*H)+'px';el.hidden=v.z>=1});
   cullLabels()}
